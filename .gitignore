@@ -1,0 +1,6 @@
+logs/
+*.pcapng
+*.btsnoop
+*.tmp
+__pycache__/
+*.pyc

@@ -1,0 +1,19 @@
+# Copy to config/interfaces.conf and edit to match your uConsole.
+# Typical mapping:
+# - CM4 built-in Bluetooth: hci0
+# - MediaTek USB/AC1200 combo adapter Bluetooth side: hci1
+
+PRIMARY_HCI="hci0"
+SECONDARY_HCI="hci1"
+
+# Interface used for broad spam detection capture.
+CAPTURE_HCI="hci0"
+
+# Interface used for focused foxhunt target tracking.
+HUNT_HCI="hci1"
+
+# Default scan window in seconds for summary mode.
+SCAN_SECONDS="30"
+
+# Alert threshold: advertisements per sender in one scan window.
+ALERT_ADS_PER_ADDR="40"

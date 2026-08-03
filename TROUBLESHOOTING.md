@@ -74,6 +74,10 @@ sudo btmgmt -i hci1 bredr off
 
 If scan traffic still appears in `btmon -i hci1`, the adapter is often usable for passive monitoring.
 
+Note:
+- `Set BR/EDR ... failed with status 0x0b (rejected)` is commonly benign on LE-only or restricted adapters.
+- In that case, continue with BLE scanning/monitoring; BR/EDR disable is not required for passive BLE workflows.
+
 ### 3) btmon package confusion
 
 Symptom:

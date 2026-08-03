@@ -12,6 +12,7 @@ need_cmd bluetoothctl
 need_cmd dmesg
 need_cmd awk
 need_cmd sed
+need_cmd grep
 
 IFACE="${1:-${SECONDARY_HCI:-hci1}}"
 
@@ -42,6 +43,27 @@ run_diag() {
   echo "${stage}|${report_path}"
 }
 
+run_btmgmt_cmd() {
+  local iface="$1"
+  local mode="$2"
+  local value="$3"
+  local output
+
+  output="$(btmgmt -i "${iface}" "${mode}" "${value}" 2>&1)" || {
+    # status 0x0b on BR/EDR is commonly returned by LE-only or restricted adapters.
+    if printf "%s\n" "${output}" | grep -qi 'status 0x0b'; then
+      echo "btmgmt -i ${iface} ${mode} ${value}: rejected (0x0b); continuing (usually safe on LE-only adapters)"
+      return 0
+    fi
+
+    echo "btmgmt -i ${iface} ${mode} ${value}: failed"
+    printf "%s\n" "${output}"
+    return 1
+  }
+
+  echo "${output}"
+}
+
 echo "Running pre-recovery diagnostics..."
 pre_info="$(run_diag "before")"
 
@@ -62,16 +84,16 @@ echo "Applying safe recovery sequence for ${IFACE}..."
 
   if command -v btmgmt >/dev/null 2>&1; then
     echo "btmgmt -i ${IFACE} power off"
-    btmgmt -i "${IFACE}" power off || true
+    run_btmgmt_cmd "${IFACE}" power off || true
 
     echo "btmgmt -i ${IFACE} power on"
-    btmgmt -i "${IFACE}" power on || true
+    run_btmgmt_cmd "${IFACE}" power on || true
 
     echo "btmgmt -i ${IFACE} le on"
-    btmgmt -i "${IFACE}" le on || true
+    run_btmgmt_cmd "${IFACE}" le on || true
 
     echo "btmgmt -i ${IFACE} bredr off"
-    btmgmt -i "${IFACE}" bredr off || true
+    run_btmgmt_cmd "${IFACE}" bredr off || true
   fi
 
   if command -v systemctl >/dev/null 2>&1; then

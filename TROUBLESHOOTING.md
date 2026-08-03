@@ -21,6 +21,26 @@ The script writes a timestamped report in `logs/` that includes:
 - Bluetooth-related kernel log snippets
 - quick recommendations
 
+## One-command safe recovery + before/after report
+
+If `hci1` is flaky (for example local-name read errors), run:
+
+```bash
+sudo ./scripts/recover-hci.sh
+```
+
+Or target a specific interface:
+
+```bash
+sudo ./scripts/recover-hci.sh hci1
+```
+
+What it does:
+- runs `troubleshoot-bluetooth.sh` before changes
+- applies safe reset steps (`rfkill`, `hciconfig`, `btmgmt`, bluetooth service restart)
+- runs diagnostics again after changes
+- writes a recovery summary in `logs/recover-*.txt`
+
 ## Common findings and fixes
 
 ### 1) Only one HCI controller appears

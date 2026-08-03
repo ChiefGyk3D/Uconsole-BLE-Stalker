@@ -114,6 +114,12 @@ Quick report command:
 ./scripts/troubleshoot-bluetooth.sh
 ```
 
+Auto-recovery command (runs before/after diagnostics):
+
+```bash
+sudo ./scripts/recover-hci.sh
+```
+
 ## Notes
 
 - BLE spammers may rotate MAC addresses quickly.

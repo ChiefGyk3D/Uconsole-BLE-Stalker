@@ -104,6 +104,16 @@ git add .
 git commit -m "Initial uConsole BLE spam detector and foxhunt toolkit"
 ```
 
+## Troubleshooting
+
+See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for adapter detection, `hci1` local-name errors, package install issues, and single-adapter fallback workflows.
+
+Quick report command:
+
+```bash
+./scripts/troubleshoot-bluetooth.sh
+```
+
 ## Notes
 
 - BLE spammers may rotate MAC addresses quickly.

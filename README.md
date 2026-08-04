@@ -19,12 +19,24 @@ Out-of-box defaults are single-adapter safe:
 
 ## Legal and Safety
 
-**Operator Qualifications:**
-- This toolkit is operated under a General Class Amateur Radio license in compliance with US FCC regulations and all applicable US federal, state, and local laws.
-- This toolkit is passive monitoring only. Do not transmit, jam, deauth, or interfere.
+**Operator Qualifications & Compliance:**
+- This toolkit is operated under a **General Class Amateur Radio license** in compliance with US FCC regulations and all applicable US federal, state, and local laws.
+- Amateur Radio licensing demonstrates intentional training in RF safety, interference prevention, and responsible spectrum use.
+- This toolkit is **passive monitoring only**. Do not transmit, jam, deauth, or interfere.
+
+**Critical Warning: BLE Spamming is Harmful and Often Illegal**
+
+This toolkit is designed to **detect and analyze** BLE spam—**not to generate it**. Running BLE spam attacks in uncontrolled, public environments is:
+
+- **Illegal** in most jurisdictions under FCC regulations and computer fraud/interference statutes
+- **Dangerous**: BLE spam floods can interfere with emergency services (e.g., disrupting 911 call connectivity or emergency alert systems)
+- **Deeply harmful to accessibility**: Hearing-impaired and disabled individuals rely on Bluetooth audio devices for communication, safety, and independence. BLE spam disrupts cochlear implants, hearing aids, and medical alert devices.
+- **Unethical**: Subjecting non-consenting users to interference violates their autonomy and safety.
+
+**There is a time and place.** Research involving intentional BLE spam belongs in controlled laboratory environments or isolated locations without public presence or cell coverage—never in public venues where people depend on reliable connectivity.
 
 **Venue Authorization:**
-- Use only where passive RF monitoring is allowed and authorized by venue/event policy.
+- Use this toolkit only where passive RF monitoring is allowed and authorized by venue/event policy.
 - This work has been reviewed and approved by BSidesLV 2026 SOC/NOC staff.
 - Initial concerns about extensive antenna equipment were addressed through transparent explanation of the research goals and methodology.
 - Multiple BSidesLV staff members have expressed full support and have offered to vouch for this work if needed.

@@ -19,8 +19,21 @@ Out-of-box defaults are single-adapter safe:
 
 ## Legal and Safety
 
-Use only where passive RF monitoring is allowed and authorized by venue/event policy.
-This toolkit is passive monitoring only. Do not transmit, jam, deauth, or interfere.
+**Operator Qualifications:**
+- This toolkit is operated under a General Class Amateur Radio license in compliance with US FCC regulations and all applicable US federal, state, and local laws.
+- This toolkit is passive monitoring only. Do not transmit, jam, deauth, or interfere.
+
+**Venue Authorization:**
+- Use only where passive RF monitoring is allowed and authorized by venue/event policy.
+- This work has been reviewed and approved by BSidesLV 2026 SOC staff.
+
+**Community Context:**
+- Cybersecurity conferences have historically faced scrutiny and displacement due to security concerns and regulatory paranoia. DEFCON 32 was nearly cancelled when Caesar's Palace withdrew venue support mid-event, leading to the last-minute relocation to Las Vegas Convention Center and the iconic "DEFCON Un-Cancelled" t-shirt.
+- This toolkit is built with deep care for the infosec community and its future. Ethical, legal, responsible research strengthens trust in our field and helps venues welcome and protect the conferences we love.
+- Responsible boundaries are essential: more aggressive or invasive experiments are conducted in controlled home environments or isolated locations without cell coverage, never at public venues.
+
+**Thank You:**
+- Special thanks to BSidesLV 2026 for entertaining and supporting ethical experimental work that helps improve conference security posture and community trust.
 
 ## Features
 

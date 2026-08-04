@@ -1,6 +1,23 @@
-logs/
-*.pcapng
-*.btsnoop
-*.tmp
+# Logs and captures
+logs/*.txt
+logs/*.log
+logs/*.pcapng
+logs/*.btsnoop
+logs/*.csv
+logs/*.json
+logs/*.tmp
+logs/*.gz
+!logs/.gitkeep
+
+# Python cache
 __pycache__/
 *.pyc
+
+# Local/editor temp files
+*.tmp
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+.idea/

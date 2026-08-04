@@ -154,6 +154,15 @@ Run against any btmon capture:
 python3 scripts/ble-signature-scan.py --input logs/btmon-hci0-YYYYMMDD-HHMMSS.log
 ```
 
+Captures also produce a `.btsnoop` trace alongside the text log. It is much
+smaller and can be replayed or summarized directly, which makes it the better
+file to attach when reporting an issue or sharing evidence with venue staff:
+
+```bash
+btmon -r logs/btmon-hci0-YYYYMMDD-HHMMSS.btsnoop
+btmon -a logs/btmon-hci0-YYYYMMDD-HHMMSS.btsnoop
+```
+
 This scanner is defensive and heuristic-based. It reports likely pattern families (for example Flipper-like, Marauder-like, Fast Pair lure flood, generic burst) with confidence and evidence, but it cannot prove attribution to a specific tool.
 
 ### Signature tuning

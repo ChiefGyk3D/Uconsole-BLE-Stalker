@@ -4,14 +4,108 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONF_FILE="${ROOT_DIR}/config/interfaces.conf"
 
+# Settings accepted from config/interfaces.conf. Anything else is ignored.
+INTERFACES_CONF_KEYS=(
+  ADAPTER_MODE
+  PRIMARY_HCI
+  SECONDARY_HCI
+  CAPTURE_HCI
+  HUNT_HCI
+  SCAN_SECONDS
+  ALERT_ADS_PER_ADDR
+)
+
+_assign_conf_value() {
+  local key="$1"
+  local value="$2"
+
+  # Take the contents of a quoted value and discard any trailing comment.
+  # Unquoted values are truncated at the first '#'.
+  if [[ "${value}" =~ ^\"([^\"]*)\" ]]; then
+    value="${BASH_REMATCH[1]}"
+  elif [[ "${value}" =~ ^\'([^\']*)\' ]]; then
+    value="${BASH_REMATCH[1]}"
+  else
+    value="${value%%#*}"
+    value="${value%"${value##*[![:space:]]}"}"
+  fi
+
+  printf -v "${key}" '%s' "${value}"
+}
+
+# Read a KEY=value config file without evaluating it.
+#
+# Using 'source' here would let anything in a config file run as root, since
+# most of these scripts require sudo. This parser only assigns values for
+# keys that are explicitly allowed, so config contents are treated as data.
+#
+# Usage: load_conf_file <file> <allowed_key>...
+load_conf_file() {
+  local file="$1"
+  shift
+  local allowed_keys=("$@")
+
+  local lineno=0
+  local line key value candidate matched
+
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    lineno=$((lineno + 1))
+
+    line="${line%$'\r'}"
+    line="${line#"${line%%[![:space:]]*}"}"
+
+    [[ -z "${line}" || "${line}" == \#* ]] && continue
+
+    if [[ ! "${line}" =~ ^([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=(.*)$ ]]; then
+      echo "warn: ${file}:${lineno}: ignoring unparsable line." >&2
+      continue
+    fi
+
+    key="${BASH_REMATCH[1]}"
+    value="${BASH_REMATCH[2]}"
+
+    matched=0
+    for candidate in "${allowed_keys[@]}"; do
+      if [[ "${key}" == "${candidate}" ]]; then
+        matched=1
+        break
+      fi
+    done
+
+    if (( matched == 0 )); then
+      echo "warn: ${file}:${lineno}: ignoring unrecognized setting '${key}'." >&2
+      continue
+    fi
+
+    _assign_conf_value "${key}" "${value}"
+  done < "${file}"
+}
+
+# Fall back to a default when a setting that feeds timeout/awk is not numeric.
+_require_positive_int() {
+  local key="$1"
+  local fallback="$2"
+  local current="${!key:-}"
+
+  if [[ ! "${current}" =~ ^[0-9]+$ ]] || (( current == 0 )); then
+    echo "warn: ${key}='${current}' is not a positive integer; using ${fallback}." >&2
+    printf -v "${key}" '%s' "${fallback}"
+  fi
+}
+
 load_config() {
   if [[ ! -f "${CONF_FILE}" ]]; then
     echo "Missing ${CONF_FILE}. Copy interfaces.conf.example first." >&2
     exit 1
   fi
 
-  # shellcheck disable=SC1090
-  source "${CONF_FILE}"
+  load_conf_file "${CONF_FILE}" "${INTERFACES_CONF_KEYS[@]}"
+
+  SCAN_SECONDS="${SCAN_SECONDS:-30}"
+  ALERT_ADS_PER_ADDR="${ALERT_ADS_PER_ADDR:-40}"
+
+  _require_positive_int SCAN_SECONDS 30
+  _require_positive_int ALERT_ADS_PER_ADDR 40
 }
 
 need_cmd() {
@@ -169,18 +263,29 @@ stop_le_scan() {
 # plus 'set -e' that status would abort the calling script before any analysis
 # stage could run. Absorb the expected statuses here so callers keep going.
 #
-# Usage: run_btmon_capture <iface> <duration> <outfile> [quiet|tee]
+# When a btsnoop path is given, btmon also writes a compact binary trace that
+# can be replayed with 'btmon -r <file>' or summarized with 'btmon -a <file>'.
+# That format is much smaller than the text log and is the better artifact to
+# hand to venue SOC/NOC staff.
+#
+# Usage: run_btmon_capture <iface> <duration> <outfile> [quiet|tee] [btsnoop]
 run_btmon_capture() {
   local iface="$1"
   local duration="$2"
   local outfile="$3"
   local mode="${4:-quiet}"
+  local btsnoop="${5:-}"
   local rc=0
 
+  local btmon_args=(-i "${iface}")
+  if [[ -n "${btsnoop}" ]]; then
+    btmon_args+=(-w "${btsnoop}")
+  fi
+
   if [[ "${mode}" == "tee" ]]; then
-    timeout "${duration}" stdbuf -oL btmon -i "${iface}" 2>/dev/null | tee "${outfile}" || rc=$?
+    timeout "${duration}" stdbuf -oL btmon "${btmon_args[@]}" 2>/dev/null | tee "${outfile}" || rc=$?
   else
-    timeout "${duration}" stdbuf -oL btmon -i "${iface}" >"${outfile}" 2>/dev/null || rc=$?
+    timeout "${duration}" stdbuf -oL btmon "${btmon_args[@]}" >"${outfile}" 2>/dev/null || rc=$?
   fi
 
   case "${rc}" in

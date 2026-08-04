@@ -28,16 +28,18 @@ mkdir -p "${ROOT_DIR}/logs"
 
 STAMP="$(now_stamp)"
 CAPTURE_LOG="${ROOT_DIR}/logs/btmon-${IFACE}-${STAMP}.log"
+CAPTURE_TRACE="${ROOT_DIR}/logs/btmon-${IFACE}-${STAMP}.btsnoop"
 SUMMARY_FILE="${ROOT_DIR}/logs/summary-${IFACE}-${STAMP}.txt"
 
 echo "Starting BLE field run on ${IFACE} for ${DURATION}s"
 echo "Capture log: ${CAPTURE_LOG}"
+echo "Capture trace: ${CAPTURE_TRACE}"
 echo "Summary file: ${SUMMARY_FILE}"
 
 trap 'stop_le_scan "${IFACE}"' EXIT
 
 start_le_scan "${IFACE}"
-run_btmon_capture "${IFACE}" "${DURATION}" "${CAPTURE_LOG}" quiet
+run_btmon_capture "${IFACE}" "${DURATION}" "${CAPTURE_LOG}" quiet "${CAPTURE_TRACE}"
 stop_le_scan "${IFACE}"
 
 warn_if_capture_empty "${CAPTURE_LOG}"
@@ -49,6 +51,7 @@ warn_if_capture_empty "${CAPTURE_LOG}"
   echo "duration_seconds=${DURATION}"
   echo "alert_threshold=${ALERT_THRESHOLD}"
   echo "capture_log=${CAPTURE_LOG}"
+  echo "capture_trace=${CAPTURE_TRACE}"
   echo
 
   total_lines=$(wc -l < "${CAPTURE_LOG}" | tr -d ' ')

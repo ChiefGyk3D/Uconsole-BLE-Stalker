@@ -26,8 +26,14 @@ SDR_SERVICES=""
 EXTRA_DISABLE_SERVICES=""
 
 if [[ -f "${AIO_CONF}" ]]; then
-  # shellcheck disable=SC1090
-  source "${AIO_CONF}"
+  load_conf_file "${AIO_CONF}" \
+    WIFI_INTERFACES \
+    SDR_INTERFACES \
+    LORA_INTERFACES \
+    GPS_SERVICES \
+    LORA_SERVICES \
+    SDR_SERVICES \
+    EXTRA_DISABLE_SERVICES
 fi
 
 split_words() {

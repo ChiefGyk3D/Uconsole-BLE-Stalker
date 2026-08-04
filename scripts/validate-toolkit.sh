@@ -80,6 +80,7 @@ check_shell_syntax() {
   check_file "tests/test-ble-signature-tuning.sh"
   check_file "tests/test-ble-signatures.sh"
   check_file "tests/test-capture-resilience.sh"
+  check_file "tests/test-config-parsing.sh"
   check_file "tests/test-toolkit.sh"
 
   for script in \

@@ -19,17 +19,21 @@ else
 	ensure_hci "${IFACE}"
 fi
 mkdir -p "${ROOT_DIR}/logs"
-OUT="${ROOT_DIR}/logs/btmon-${IFACE}-$(now_stamp).log"
+STAMP="$(now_stamp)"
+OUT="${ROOT_DIR}/logs/btmon-${IFACE}-${STAMP}.log"
+BTSNOOP="${ROOT_DIR}/logs/btmon-${IFACE}-${STAMP}.btsnoop"
 
 echo "Capturing BLE monitor output on ${IFACE} for ${DURATION}s"
 echo "Log: ${OUT}"
+echo "Trace: ${BTSNOOP}"
 
 trap 'stop_le_scan "${IFACE}"' EXIT
 
 start_le_scan "${IFACE}"
-run_btmon_capture "${IFACE}" "${DURATION}" "${OUT}" tee
+run_btmon_capture "${IFACE}" "${DURATION}" "${OUT}" tee "${BTSNOOP}"
 stop_le_scan "${IFACE}"
 
 warn_if_capture_empty "${OUT}"
 
 echo "Capture complete."
+echo "Replay with: btmon -r ${BTSNOOP}"

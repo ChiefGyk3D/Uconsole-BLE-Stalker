@@ -93,6 +93,9 @@ cp config/interfaces.conf.example config/interfaces.conf
 nano config/interfaces.conf
 ```
 
+Config files are parsed as plain `KEY=value` data, not executed as shell.
+Only recognized settings are applied; anything else is reported and ignored.
+
 Then discover adapter names:
 
 ```bash
@@ -245,6 +248,19 @@ bluetoothctl scan on
 
 If a capture completes with no advertising reports, the scripts say so rather
 than letting an empty result look like a quiet RF environment.
+
+### Capture artifacts
+
+Captures produce both a human-readable text log and a compact `.btsnoop`
+binary trace:
+
+```bash
+btmon -r logs/btmon-hci0-<timestamp>.btsnoop   # replay the capture
+btmon -a logs/btmon-hci0-<timestamp>.btsnoop   # summarize the capture
+```
+
+The `.btsnoop` file is far smaller than the text log and is the better artifact
+to share with venue SOC/NOC staff or attach to a bug report.
 
 ## Optional GPS-assisted plotting
 

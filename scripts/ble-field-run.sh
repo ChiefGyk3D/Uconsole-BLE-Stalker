@@ -15,11 +15,15 @@ need_cmd tee
 need_cmd wc
 need_root
 
-IFACE="${1:-${CAPTURE_HCI}}"
+IFACE="${1:-}"
 DURATION="${2:-300}"
 ALERT_THRESHOLD="${3:-${ALERT_ADS_PER_ADDR}}"
 
-ensure_hci "${IFACE}"
+if [[ -z "${IFACE}" ]]; then
+  IFACE="$(default_capture_iface)"
+else
+  ensure_hci "${IFACE}"
+fi
 mkdir -p "${ROOT_DIR}/logs"
 
 STAMP="$(now_stamp)"

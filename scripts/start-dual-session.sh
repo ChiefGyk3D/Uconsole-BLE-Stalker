@@ -13,13 +13,16 @@ if [[ "${EUID}" -ne 0 ]]; then
   exit 1
 fi
 
+CAPTURE_IFACE="$(default_capture_iface)"
+HUNT_IFACE="$(default_hunt_iface)"
+
 SESSION="ble-hunt"
 tmux new-session -d -s "${SESSION}" -n monitor
 
-tmux send-keys -t "${SESSION}:monitor.0" "cd ${ROOT_DIR} && ./scripts/ble-spam-watch.sh ${CAPTURE_HCI} ${SCAN_SECONDS}" C-m
+tmux send-keys -t "${SESSION}:monitor.0" "cd ${ROOT_DIR} && ./scripts/ble-spam-watch.sh ${CAPTURE_IFACE} ${SCAN_SECONDS}" C-m
 
 tmux split-window -h -t "${SESSION}:monitor"
-tmux send-keys -t "${SESSION}:monitor.1" "cd ${ROOT_DIR} && echo 'Run: ./scripts/foxhunt-rssi.sh <TARGET_MAC> ${HUNT_HCI}'" C-m
+tmux send-keys -t "${SESSION}:monitor.1" "cd ${ROOT_DIR} && echo 'Run: ./scripts/foxhunt-rssi.sh <TARGET_MAC> ${HUNT_IFACE}'" C-m
 
 tmux select-pane -t "${SESSION}:monitor.0"
 tmux attach-session -t "${SESSION}"

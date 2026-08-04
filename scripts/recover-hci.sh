@@ -14,7 +14,11 @@ need_cmd awk
 need_cmd sed
 need_cmd grep
 
-IFACE="${1:-${SECONDARY_HCI:-hci1}}"
+IFACE="${1:-}"
+
+if [[ -z "${IFACE}" ]]; then
+  IFACE="$(pick_runtime_iface "${SECONDARY_HCI:-hci1}" "${CAPTURE_HCI:-${PRIMARY_HCI:-hci0}}" "recover")"
+fi
 
 if [[ ! -x "${SCRIPT_DIR}/troubleshoot-bluetooth.sh" ]]; then
   echo "Missing executable script: scripts/troubleshoot-bluetooth.sh" >&2

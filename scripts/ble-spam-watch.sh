@@ -11,11 +11,15 @@ need_cmd hciconfig
 need_cmd timeout
 need_root
 
-IFACE="${1:-${CAPTURE_HCI}}"
+IFACE="${1:-}"
 DURATION="${2:-${SCAN_SECONDS}}"
 THRESHOLD="${3:-${ALERT_ADS_PER_ADDR}}"
 
-ensure_hci "${IFACE}"
+if [[ -z "${IFACE}" ]]; then
+  IFACE="$(default_capture_iface)"
+else
+  ensure_hci "${IFACE}"
+fi
 
 echo "Monitoring ${IFACE} for ${DURATION}s. Alert threshold=${THRESHOLD} ads/address"
 

@@ -43,6 +43,37 @@ ensure_hci() {
   fi
 }
 
+pick_runtime_iface() {
+  local preferred="$1"
+  local fallback="$2"
+  local context="$3"
+
+  if [[ -n "${preferred}" ]] && hci_exists "${preferred}"; then
+    printf "%s\n" "${preferred}"
+    return 0
+  fi
+
+  if [[ -n "${fallback}" ]] && hci_exists "${fallback}"; then
+    echo "${context}: preferred interface ${preferred} not available; falling back to ${fallback}." >&2
+    printf "%s\n" "${fallback}"
+    return 0
+  fi
+
+  echo "${context}: no usable Bluetooth interface found (preferred=${preferred}, fallback=${fallback})." >&2
+  echo "Run scripts/detect-hci.sh and update config/interfaces.conf." >&2
+  exit 1
+}
+
+default_capture_iface() {
+  pick_runtime_iface "${CAPTURE_HCI:-hci0}" "${PRIMARY_HCI:-hci0}" "capture"
+}
+
+default_hunt_iface() {
+  local preferred="${HUNT_HCI:-${SECONDARY_HCI:-hci1}}"
+  local fallback="${CAPTURE_HCI:-${PRIMARY_HCI:-hci0}}"
+  pick_runtime_iface "${preferred}" "${fallback}" "hunt"
+}
+
 now_stamp() {
   date +"%Y%m%d-%H%M%S"
 }

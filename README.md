@@ -6,6 +6,11 @@ This toolkit is designed for a dual-adapter setup:
 - CM4 built-in Bluetooth (usually `hci0`) for broad monitoring
 - External adapter (usually `hci1`) for focused foxhunt tracking
 
+Out-of-box defaults are single-adapter safe:
+- capture defaults to `hci0`
+- hunt defaults to `hci0`
+- scripts auto-fallback if `hci1` is not present
+
 ## Legal and Safety
 
 Use only where passive RF monitoring is allowed and authorized by venue/event policy.
@@ -47,7 +52,9 @@ Then discover adapter names:
 ## Typical Mapping
 
 - `hci0`: Pi CM4 internal Bluetooth
-- `hci1`: MediaTek USB Bluetooth side
+- `hci1`: external USB Bluetooth (if present)
+
+Note: some AC1200 adapters are Wi-Fi-only and do not expose Bluetooth.
 
 Verify by unplug/replug external adapter and rerun detection.
 
@@ -56,7 +63,7 @@ Verify by unplug/replug external adapter and rerun detection.
 ### 1) Detection sweep
 
 ```bash
-sudo ./scripts/ble-spam-watch.sh hci0 45 60
+sudo ./scripts/ble-spam-watch.sh
 ```
 
 Arguments:
@@ -67,7 +74,7 @@ Arguments:
 ### 2) Raw capture for later analysis
 
 ```bash
-sudo ./scripts/capture-btmon.sh hci0 120
+sudo ./scripts/capture-btmon.sh
 ```
 
 Creates logs under `logs/`.
@@ -75,7 +82,7 @@ Creates logs under `logs/`.
 ### 3) Foxhunt a known sender
 
 ```bash
-sudo ./scripts/foxhunt-rssi.sh AA:BB:CC:DD:EE:FF hci1
+sudo ./scripts/foxhunt-rssi.sh AA:BB:CC:DD:EE:FF
 ```
 
 Walk slowly and compare median RSSI trend over time.
@@ -93,7 +100,7 @@ Right pane: ready for target RSSI tracking command.
 ### 5) One-command field run (capture + summary)
 
 ```bash
-sudo ./scripts/ble-field-run.sh hci0 600 60
+sudo ./scripts/ble-field-run.sh
 ```
 
 Outputs:
@@ -127,6 +134,68 @@ The script writes and uses `logs/aio-state-latest.state` to restore previous int
 3. Validate with repeat scans from different locations.
 4. Pick target and switch to RSSI tracking on second adapter.
 5. Move in short steps and follow median RSSI increase.
+
+## Field Operation Checklist
+
+Use this sequence when you are actively operating in the field.
+
+1. Pull latest changes:
+
+```bash
+git pull
+```
+
+2. Enter BLE-focused mode (pick one):
+
+```bash
+sudo ./scripts/aio-feature-profile.sh ble-only
+sudo ./scripts/aio-feature-profile.sh ble-gps
+sudo ./scripts/aio-feature-profile.sh ble-gps-lora
+```
+
+3. Run health check:
+
+```bash
+./scripts/troubleshoot-bluetooth.sh
+```
+
+4. If second adapter is unstable, run recovery:
+
+```bash
+sudo ./scripts/recover-hci.sh hci1
+```
+
+5. Capture and summarize in one run:
+
+```bash
+sudo ./scripts/ble-field-run.sh
+```
+
+6. Read the newest summary and select hunt targets:
+
+```bash
+latest=$(ls -1t logs/summary-*.txt | head -n 1)
+sed -n '1,220p' "$latest"
+```
+
+7. Foxhunt a selected target:
+
+```bash
+sudo ./scripts/foxhunt-rssi.sh AA:BB:CC:DD:EE:FF hci0
+```
+
+8. Restore normal system profile after operation:
+
+```bash
+sudo ./scripts/aio-feature-profile.sh restore
+```
+
+9. Archive logs before moving locations:
+
+```bash
+mkdir -p ~/field-archives
+tar -czf ~/field-archives/ble-$(date +%Y%m%d-%H%M%S).tgz logs/
+```
 
 ## Git Initialization
 

@@ -11,14 +11,18 @@ need_cmd hciconfig
 need_root
 
 TARGET_MAC="${1:-}"
-IFACE="${2:-${HUNT_HCI}}"
+IFACE="${2:-}"
 
 if [[ -z "${TARGET_MAC}" ]]; then
   echo "Usage: sudo $0 <TARGET_MAC> [HCI_IFACE]" >&2
   exit 1
 fi
 
-ensure_hci "${IFACE}"
+if [[ -z "${IFACE}" ]]; then
+  IFACE="$(default_hunt_iface)"
+else
+  ensure_hci "${IFACE}"
+fi
 
 echo "Tracking ${TARGET_MAC} on ${IFACE}. Ctrl+C to stop."
 echo "Tip: walk slowly and watch the median RSSI trend rise as you approach source."

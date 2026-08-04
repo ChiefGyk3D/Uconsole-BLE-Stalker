@@ -10,10 +10,14 @@ need_cmd btmon
 need_cmd hciconfig
 need_root
 
-IFACE="${1:-${CAPTURE_HCI}}"
+IFACE="${1:-}"
 DURATION="${2:-${SCAN_SECONDS}}"
 
-ensure_hci "${IFACE}"
+if [[ -z "${IFACE}" ]]; then
+	IFACE="$(default_capture_iface)"
+else
+	ensure_hci "${IFACE}"
+fi
 mkdir -p "${ROOT_DIR}/logs"
 OUT="${ROOT_DIR}/logs/btmon-${IFACE}-$(now_stamp).log"
 

@@ -25,7 +25,9 @@ Out-of-box defaults are single-adapter safe:
 
 **Venue Authorization:**
 - Use only where passive RF monitoring is allowed and authorized by venue/event policy.
-- This work has been reviewed and approved by BSidesLV 2026 SOC staff.
+- This work has been reviewed and approved by BSidesLV 2026 SOC/NOC staff.
+- Initial concerns about extensive antenna equipment were addressed through transparent explanation of the research goals and methodology.
+- Multiple BSidesLV staff members have expressed full support and have offered to vouch for this work if needed.
 
 **Community Context:**
 - Cybersecurity conferences have historically faced scrutiny and displacement due to security concerns and regulatory paranoia. DEFCON 32 was nearly cancelled when Caesar's Palace withdrew venue support mid-event, leading to the last-minute relocation to Las Vegas Convention Center and the iconic "DEFCON Un-Cancelled" t-shirt.
@@ -33,7 +35,7 @@ Out-of-box defaults are single-adapter safe:
 - Responsible boundaries are essential: more aggressive or invasive experiments are conducted in controlled home environments or isolated locations without cell coverage, never at public venues.
 
 **Thank You:**
-- Special thanks to BSidesLV 2026 for entertaining and supporting ethical experimental work that helps improve conference security posture and community trust.
+- Deep gratitude to BSidesLV 2026 SOC/NOC staff for engaging openly, understanding the research mission, and championing ethical experimental work that improves conference security posture and protects community trust.
 
 ## Features
 

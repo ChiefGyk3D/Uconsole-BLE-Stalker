@@ -235,6 +235,12 @@ Auto-recovery command (runs before/after diagnostics):
 sudo ./scripts/recover-hci.sh
 ```
 
+MediaTek AC1200-specific diagnostic report:
+
+```bash
+./scripts/diagnose-mediatek-ac1200.sh
+```
+
 ## Notes
 
 - BLE spammers may rotate MAC addresses quickly.

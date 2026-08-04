@@ -115,6 +115,16 @@ Fix:
 - restart Bluetooth service
 - test with a known-good BLE dongle if instability persists
 
+## MediaTek AC1200 specific diagnostics
+
+If you are using the HackerGadgets AC1200 USB-C Wi-Fi card, run:
+
+```bash
+./scripts/diagnose-mediatek-ac1200.sh
+```
+
+This collects USB inventory, controller visibility, rfkill state, module load info, and relevant Bluetooth/MediaTek dmesg lines into a log file under `logs/`.
+
 ## Shareable debug bundle
 
 You can send this output when asking for help:

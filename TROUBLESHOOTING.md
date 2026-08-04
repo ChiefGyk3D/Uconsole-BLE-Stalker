@@ -123,7 +123,22 @@ Fix:
 
 ## MediaTek AC1200 specific diagnostics
 
-If you are using the HackerGadgets AC1200 USB-C Wi-Fi card, run:
+### About the AC1200 (HackerGadgets)
+
+The **AC1200 USB-C Wi-Fi card** is sourced from [HackerGadgets.com](https://www.hackergadgets.com/) and is a powerful upgrade for uConsole + AIO v2 deployments:
+
+**Key Specifications:**
+- **Chipset:** MediaTek MT7921AUN (WiFi 6/6E + Bluetooth 5.2 combo)
+- **WiFi:** Passive monitor mode support + active connectivity (802.11 a/b/g/n/ac/ax)
+- **Bluetooth 5.2:** Passive scanning (no transmission required for this toolkit)
+- **Antennas:** 2× IPEX U.FL connectors each for WiFi and Bluetooth (swappable high-gain options)
+- **Interface:** USB 3.2 Gen 1 Type-C
+
+**For this toolkit:** The AC1200 is **fully passive-capable** for BLE monitoring. It scans and listens without transmitting.
+
+### Diagnostics
+
+If you are using the AC1200 USB-C Wi-Fi card, run:
 
 ```bash
 ./scripts/diagnose-mediatek-ac1200.sh

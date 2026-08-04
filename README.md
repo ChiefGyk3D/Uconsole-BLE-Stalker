@@ -48,6 +48,13 @@ Out-of-box defaults are single-adapter safe:
 - One-command capture plus summary report for field sessions
 - Reversible AIO feature profiles to reduce noise and power draw during BLE operations
 
+## Hardware
+
+This toolkit is optimized for uConsole with AIO v2. Optional USB-C expansion adapters sourced from [HackerGadgets.com](https://www.hackergadgets.com/):
+
+- **AC1200 USB-C Wi-Fi Card** (MediaTek MT7921AUN): Dual Bluetooth adapter for parallel capture/hunt workflows; passive BLE 5.2 monitoring + active WiFi 6E connectivity; swappable IPEX antennas.
+- **Dual-adapter mode** leverages hci0 (internal) for continuous capture and hci1 (AC1200 external) for live target tracking, or fallback to single-adapter on compatible hardware.
+
 ## Install (Raspberry Pi OS / Debian)
 
 Primary path (uConsole + AIO v2):

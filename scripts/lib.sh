@@ -214,42 +214,108 @@ now_stamp() {
 # LE Advertising Report events while an LE scan is active, so captures taken
 # on an idle adapter are almost empty. These helpers turn scanning on for the
 # duration of a capture and reliably tear it down afterwards.
-LE_SCAN_PGID=""
+#
+# Scanning is driven by bluetoothctl rather than 'btmgmt find'. btmgmt is a
+# bt_shell program: backgrounded and detached from a terminal it blocks in its
+# event loop and never issues the Start Discovery command, so the capture comes
+# back empty. bluetoothctl is fed commands over a FIFO whose write end we hold
+# open, which keeps its session alive for the whole capture and lets us pick a
+# specific controller on dual-radio rigs.
+LE_SCAN_PID=""
+LE_SCAN_FIFO=""
+LE_SCAN_FD=""
+
+# Resolve the Bluetooth address of an hciN interface so bluetoothctl can
+# 'select' it. Without this bluetoothctl uses whichever controller is default,
+# which is wrong when capture and hunt radios are separate.
+hci_address() {
+  local iface="$1" addr=""
+
+  if command -v btmgmt >/dev/null 2>&1; then
+    addr="$(btmgmt -i "${iface}" info 2>/dev/null \
+      | grep -oE 'addr ([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}' \
+      | head -n1 | awk '{print $2}')"
+  fi
+
+  if [[ -z "${addr}" ]] && command -v hciconfig >/dev/null 2>&1; then
+    addr="$(hciconfig "${iface}" 2>/dev/null \
+      | grep -oE 'BD Address: ([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}' \
+      | head -n1 | awk '{print $3}')"
+  fi
+
+  printf '%s' "${addr}"
+}
 
 start_le_scan() {
   local iface="$1"
 
-  if ! command -v btmgmt >/dev/null 2>&1; then
-    echo "warn: btmgmt not found; cannot enable LE scan automatically." >&2
-    echo "warn: install bluez-tools, or run 'bluetoothctl scan on' in another shell." >&2
+  # Powering the radio and enabling LE are one-shot btmgmt commands; those work
+  # fine non-interactively because they exit immediately.
+  if command -v btmgmt >/dev/null 2>&1; then
+    btmgmt -i "${iface}" power on >/dev/null 2>&1 || true
+    btmgmt -i "${iface}" le on >/dev/null 2>&1 || true
+  fi
+
+  if ! command -v bluetoothctl >/dev/null 2>&1; then
+    echo "warn: bluetoothctl not found; cannot enable LE scan automatically." >&2
+    echo "warn: install bluez, or run 'bluetoothctl scan on' in another shell." >&2
     return 0
   fi
 
-  btmgmt -i "${iface}" power on >/dev/null 2>&1 || true
-  btmgmt -i "${iface}" le on >/dev/null 2>&1 || true
-
-  # 'btmgmt find' completes after one discovery window, so loop it to keep the
-  # scan running. setsid puts the loop in its own process group, which lets us
-  # kill the loop and any in-flight btmgmt child together.
-  if command -v setsid >/dev/null 2>&1; then
-    setsid bash -c 'while :; do btmgmt -i "$1" find -l >/dev/null 2>&1 || true; sleep 1; done' _ "${iface}" >/dev/null 2>&1 &
-    LE_SCAN_PGID=$!
-  else
-    bash -c 'while :; do btmgmt -i "$1" find -l >/dev/null 2>&1 || true; sleep 1; done' _ "${iface}" >/dev/null 2>&1 &
-    LE_SCAN_PGID=$!
+  LE_SCAN_FIFO="$(mktemp -u "${TMPDIR:-/tmp}/ble-scan-XXXXXX.fifo")"
+  if ! mkfifo -m 600 "${LE_SCAN_FIFO}" 2>/dev/null; then
+    echo "warn: could not create scan control FIFO; LE scan not started." >&2
+    LE_SCAN_FIFO=""
+    return 0
   fi
 
+  bluetoothctl <"${LE_SCAN_FIFO}" >/dev/null 2>&1 &
+  LE_SCAN_PID=$!
+
+  # Hold the write end open for the lifetime of the scan. If we let it close,
+  # bluetoothctl sees EOF, quits, and discovery stops with it.
+  exec {LE_SCAN_FD}>"${LE_SCAN_FIFO}"
+
+  local addr
+  addr="$(hci_address "${iface}")"
+  if [[ -n "${addr}" ]]; then
+    printf 'select %s\n' "${addr}" >&"${LE_SCAN_FD}"
+    sleep 1
+  else
+    echo "warn: could not resolve address for ${iface}; using default controller." >&2
+  fi
+
+  printf 'scan on\n' >&"${LE_SCAN_FD}"
+
   # Give the controller a moment to actually start scanning before capturing.
-  sleep 1
+  sleep 2
 }
 
 stop_le_scan() {
   local iface="${1:-}"
 
-  if [[ -n "${LE_SCAN_PGID}" ]]; then
-    kill -- -"${LE_SCAN_PGID}" 2>/dev/null || kill "${LE_SCAN_PGID}" 2>/dev/null || true
-    wait "${LE_SCAN_PGID}" 2>/dev/null || true
-    LE_SCAN_PGID=""
+  if [[ -n "${LE_SCAN_FD}" ]]; then
+    printf 'scan off\n' >&"${LE_SCAN_FD}" || true
+    printf 'quit\n' >&"${LE_SCAN_FD}" || true
+    exec {LE_SCAN_FD}>&- 2>/dev/null || true
+    LE_SCAN_FD=""
+  fi
+
+  if [[ -n "${LE_SCAN_PID}" ]]; then
+    # bluetoothctl exits on 'quit'; kill only if it lingers.
+    local waited=0
+    while kill -0 "${LE_SCAN_PID}" 2>/dev/null && (( waited < 3 )); do
+      sleep 1
+      waited=$((waited + 1))
+    done
+    kill "${LE_SCAN_PID}" 2>/dev/null || true
+    wait "${LE_SCAN_PID}" 2>/dev/null || true
+    LE_SCAN_PID=""
+  fi
+
+  if [[ -n "${LE_SCAN_FIFO}" ]]; then
+    rm -f "${LE_SCAN_FIFO}" 2>/dev/null || true
+    LE_SCAN_FIFO=""
   fi
 
   if [[ -n "${iface}" ]] && command -v btmgmt >/dev/null 2>&1; then

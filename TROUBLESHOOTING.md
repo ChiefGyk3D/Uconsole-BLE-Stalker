@@ -163,6 +163,69 @@ btmon -r logs/btmon-hci0-YYYYMMDD-HHMMSS.btsnoop
 btmon -a logs/btmon-hci0-YYYYMMDD-HHMMSS.btsnoop
 ```
 
+### Opening captures in Wireshark
+
+`.btsnoop` is a native Wireshark capture format, so no conversion is needed.
+Open the file directly with `File > Open`, or from the command line:
+
+```bash
+wireshark logs/btmon-hci0-YYYYMMDD-HHMMSS.btsnoop
+tshark -r logs/btmon-hci0-YYYYMMDD-HHMMSS.btsnoop
+```
+
+Useful display filters once the capture is loaded:
+
+```
+bthci_evt.code == 0x3e                  # all LE Meta events
+bthci_evt.le_meta_subevent == 0x0d      # LE Extended Advertising Report
+bthci_evt.le_meta_subevent == 0x02      # LE Advertising Report (legacy)
+btcommon.eir_ad.entry.company_id        # advertisements carrying vendor data
+```
+
+Note the subevent value. Modern BT 5.x controllers report advertisements as
+**Extended** Advertising Reports (`0x0d`); filtering only on the legacy `0x02`
+returns nothing on those adapters, which looks like an empty capture.
+
+Extract fields for scripting:
+
+```bash
+tshark -r <file> -T fields -e bthci_evt.bd_addr | sort -u          # advertisers
+tshark -r <file> -T fields -e btcommon.eir_ad.entry.device_name    # names
+```
+
+`editcap` can convert to other formats if a tool needs pcapng.
+
+Wireshark can also capture live: `tshark -D` lists a `bluetooth-monitor`
+interface that mirrors what `btmon` sees. The toolkit writes `.btsnoop` itself
+so captures stay reproducible and attachable, but the live interface is useful
+for interactive work.
+
+### Why scanning uses bluetoothctl, not `btmgmt find`
+
+The controller only emits LE Advertising Report events while a scan is active,
+so `btmon` alone records nothing on an idle adapter.
+
+`btmgmt find -l` works when run interactively but **silently does nothing when
+backgrounded**: it is a `bt_shell` program, and detached from a controlling
+terminal it blocks in its event loop without ever issuing Start Discovery. The
+process stays alive and returns success, so the failure is invisible except
+that captures come back empty. `--timeout` does not fix this; the process hangs
+instead of exiting.
+
+Scanning is therefore driven by `bluetoothctl`, fed commands over a FIFO whose
+write end the script holds open. Closing that write end sends EOF, which makes
+`bluetoothctl` quit and stops discovery, so the FIFO must stay open for the
+whole capture. The script also issues `select <address>` first, which pins the
+scan to the intended radio on dual-adapter rigs instead of whichever controller
+is currently the default.
+
+If a capture is empty, verify a scan is actually running:
+
+```bash
+btmgmt -i hci0 info | grep 'current settings'   # must include 'powered'
+bluetoothctl show | grep Discovering            # should say 'yes' during capture
+```
+
 This scanner is defensive and heuristic-based. It reports likely pattern families (for example Flipper-like, Marauder-like, Fast Pair lure flood, generic burst) with confidence and evidence, but it cannot prove attribution to a specific tool.
 
 ### Signature tuning

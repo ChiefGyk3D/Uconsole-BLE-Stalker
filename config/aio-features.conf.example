@@ -1,0 +1,15 @@
+# Optional overrides for scripts/aio-feature-profile.sh
+# Copy to config/aio-features.conf and customize for your uConsole build.
+
+# Space-separated interface lists
+WIFI_INTERFACES="wlan0 wlan1"
+SDR_INTERFACES=""
+LORA_INTERFACES="lora0"
+
+# Space-separated service lists
+GPS_SERVICES="gpsd gpsd.socket"
+LORA_SERVICES=""
+SDR_SERVICES=""
+
+# Any additional services you want stopped during field mode
+EXTRA_DISABLE_SERVICES=""

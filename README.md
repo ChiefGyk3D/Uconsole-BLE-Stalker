@@ -18,6 +18,8 @@ This toolkit is passive monitoring only. Do not transmit, jam, deauth, or interf
 - Summarize top BLE advertisers and flag high-rate senders
 - Live target RSSI tracking for hot/cold foxhunt movement
 - Optional dual-pane tmux session for monitor + hunt workflow
+- One-command capture plus summary report for field sessions
+- Reversible AIO feature profiles to reduce noise and power draw during BLE operations
 
 ## Install (Raspberry Pi OS / Debian)
 
@@ -87,6 +89,36 @@ sudo ./scripts/start-dual-session.sh
 
 Left pane: spam monitor on capture interface.
 Right pane: ready for target RSSI tracking command.
+
+### 5) One-command field run (capture + summary)
+
+```bash
+sudo ./scripts/ble-field-run.sh hci0 600 60
+```
+
+Outputs:
+- `logs/btmon-<iface>-<timestamp>.log`
+- `logs/summary-<iface>-<timestamp>.txt`
+
+### 6) AIO feature profile modes (disable unused subsystems)
+
+Default profile script behavior is conservative and reversible.
+
+```bash
+sudo ./scripts/aio-feature-profile.sh ble-only
+sudo ./scripts/aio-feature-profile.sh ble-gps
+sudo ./scripts/aio-feature-profile.sh ble-gps-lora
+sudo ./scripts/aio-feature-profile.sh restore
+```
+
+Customize target interfaces/services:
+
+```bash
+cp config/aio-features.conf.example config/aio-features.conf
+nano config/aio-features.conf
+```
+
+The script writes and uses `logs/aio-state-latest.state` to restore previous interface and service states.
 
 ## Practical Conference Workflow
 

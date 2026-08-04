@@ -7,9 +7,9 @@ This toolkit is designed for a dual-adapter setup:
 - External adapter (usually `hci1`) for focused foxhunt tracking
 
 Out-of-box defaults are single-adapter safe:
-- capture defaults to `hci0`
-- hunt defaults to `hci0`
-- scripts auto-fallback if `hci1` is not present
+- default mode is `dual` for stock uConsole + AIO v2 assumptions
+- scripts auto-fallback to `hci0` if `hci1` is missing or unstable
+- one-command mode switch is available for `dual`, `single`, and `auto`
 
 ## Legal and Safety
 
@@ -49,6 +49,15 @@ Then discover adapter names:
 ./scripts/detect-hci.sh
 ```
 
+Switch adapter mode quickly:
+
+```bash
+./scripts/set-adapter-mode.sh status
+./scripts/set-adapter-mode.sh dual
+./scripts/set-adapter-mode.sh single
+./scripts/set-adapter-mode.sh auto
+```
+
 ## Typical Mapping
 
 - `hci0`: Pi CM4 internal Bluetooth
@@ -57,6 +66,11 @@ Then discover adapter names:
 Note: some AC1200 adapters are Wi-Fi-only and do not expose Bluetooth.
 
 Verify by unplug/replug external adapter and rerun detection.
+
+Mode behavior:
+- `dual`: capture prefers `hci0`, hunt prefers `hci1`
+- `single`: capture and hunt use one adapter
+- `auto`: uses dual when `hci1` exists, otherwise single-like fallback
 
 ## Usage
 

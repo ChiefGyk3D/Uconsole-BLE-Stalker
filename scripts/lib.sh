@@ -34,6 +34,19 @@ hci_exists() {
   hciconfig "${iface}" >/dev/null 2>&1
 }
 
+adapter_mode() {
+  local mode="${ADAPTER_MODE:-dual}"
+  case "${mode}" in
+    dual|single|auto)
+      printf "%s\n" "${mode}"
+      ;;
+    *)
+      echo "Unknown ADAPTER_MODE='${mode}'. Supported: dual, single, auto. Falling back to dual." >&2
+      printf "%s\n" "dual"
+      ;;
+  esac
+}
+
 ensure_hci() {
   local iface="$1"
   if ! hci_exists "${iface}"; then
@@ -65,12 +78,37 @@ pick_runtime_iface() {
 }
 
 default_capture_iface() {
-  pick_runtime_iface "${CAPTURE_HCI:-hci0}" "${PRIMARY_HCI:-hci0}" "capture"
+  local preferred="${CAPTURE_HCI:-hci0}"
+  local fallback="${PRIMARY_HCI:-hci0}"
+  pick_runtime_iface "${preferred}" "${fallback}" "capture"
 }
 
 default_hunt_iface() {
-  local preferred="${HUNT_HCI:-${SECONDARY_HCI:-hci1}}"
-  local fallback="${CAPTURE_HCI:-${PRIMARY_HCI:-hci0}}"
+  local mode
+  mode="$(adapter_mode)"
+
+  local preferred
+  local fallback
+
+  case "${mode}" in
+    single)
+      preferred="${HUNT_HCI:-${CAPTURE_HCI:-${PRIMARY_HCI:-hci0}}}"
+      fallback="${CAPTURE_HCI:-${PRIMARY_HCI:-hci0}}"
+      ;;
+    auto)
+      if hci_exists "${SECONDARY_HCI:-hci1}"; then
+        preferred="${HUNT_HCI:-${SECONDARY_HCI:-hci1}}"
+      else
+        preferred="${HUNT_HCI:-${CAPTURE_HCI:-${PRIMARY_HCI:-hci0}}}"
+      fi
+      fallback="${CAPTURE_HCI:-${PRIMARY_HCI:-hci0}}"
+      ;;
+    dual|*)
+      preferred="${HUNT_HCI:-${SECONDARY_HCI:-hci1}}"
+      fallback="${CAPTURE_HCI:-${PRIMARY_HCI:-hci0}}"
+      ;;
+  esac
+
   pick_runtime_iface "${preferred}" "${fallback}" "hunt"
 }
 

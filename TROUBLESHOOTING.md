@@ -53,6 +53,7 @@ Cause:
 
 Fix:
 - run in single-adapter mode by setting both `CAPTURE_HCI` and `HUNT_HCI` to the same interface in `config/interfaces.conf`
+- or run `./scripts/set-adapter-mode.sh single`
 
 ### 2) hci1 local-name read error
 

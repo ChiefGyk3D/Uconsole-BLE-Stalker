@@ -39,6 +39,16 @@ check_file() {
   fi
 }
 
+check_optional_file() {
+  local path="$1"
+  local hint="$2"
+  if [[ -f "${ROOT_DIR}/${path}" ]]; then
+    record_pass "Found ${path}"
+  else
+    record_warn "Missing ${path} (${hint})"
+  fi
+}
+
 check_shell_syntax() {
   local script="$1"
   if [[ "${script}" == *.py ]]; then
@@ -61,13 +71,15 @@ check_shell_syntax() {
 
   check_file "README.md"
   check_file "TROUBLESHOOTING.md"
+  check_file "LICENSE"
   check_file "config/interfaces.conf.example"
-  check_file "config/interfaces.conf"
   check_file "config/aio-features.conf.example"
   check_file "config/signatures.conf.example"
-  check_file "config/signatures.conf"
+  check_optional_file "config/interfaces.conf" "copy from config/interfaces.conf.example"
+  check_optional_file "config/signatures.conf" "copy from config/signatures.conf.example"
   check_file "tests/test-ble-signature-tuning.sh"
   check_file "tests/test-ble-signatures.sh"
+  check_file "tests/test-capture-resilience.sh"
   check_file "tests/test-toolkit.sh"
 
   for script in \
@@ -92,6 +104,22 @@ check_shell_syntax() {
     record_pass "python3 available"
   else
     record_warn "python3 not available; GPS merge helper may be unavailable"
+  fi
+
+  if command -v shellcheck >/dev/null 2>&1; then
+    shellcheck_failed=0
+    for script in "${ROOT_DIR}"/scripts/*.sh "${ROOT_DIR}"/tests/*.sh; do
+      [[ -f "${script}" ]] || continue
+      if ! shellcheck -S warning -x "${script}" >/dev/null 2>&1; then
+        record_warn "shellcheck findings in ${script#"${ROOT_DIR}"/}"
+        shellcheck_failed=1
+      fi
+    done
+    if (( shellcheck_failed == 0 )); then
+      record_pass "shellcheck clean at warning severity"
+    fi
+  else
+    record_warn "shellcheck not installed; static analysis skipped"
   fi
 
   echo

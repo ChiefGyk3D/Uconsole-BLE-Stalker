@@ -21,3 +21,8 @@ __pycache__/
 .DS_Store
 Thumbs.db
 .idea/
+
+# Local operator config (copy from the .example files, keep local)
+config/interfaces.conf
+config/signatures.conf
+config/aio-features.conf

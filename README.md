@@ -219,7 +219,32 @@ Run the full local validation suite before a field session:
 ./tests/test-toolkit.sh
 ```
 
-This checks shell syntax for the toolkit scripts, confirms the core config files exist, and writes a timestamped report under `logs/`.
+This checks shell syntax for the toolkit scripts, runs `shellcheck` when it is installed, confirms the example config files exist, exercises the signature and GPS-merge regression tests, verifies the capture pipeline survives its own timeout, and writes a timestamped report under `logs/`.
+
+The same suite runs in CI on every push and pull request. To match CI locally, install `shellcheck`:
+
+```bash
+sudo apt install -y shellcheck
+```
+
+## How scanning works
+
+`btmon` is a passive observer of the local HCI channel. It does not start a scan
+itself, and a Bluetooth controller only emits `LE Advertising Report` events
+while an LE scan is active. A capture taken on an otherwise idle adapter will
+therefore be nearly empty.
+
+The capture scripts handle this for you: they enable LE scanning on the target
+interface for the duration of the run and stop it again on exit, including when
+you interrupt with Ctrl+C. If `btmgmt` is unavailable the scripts warn and
+continue, and you can start a scan yourself in another shell:
+
+```bash
+bluetoothctl scan on
+```
+
+If a capture completes with no advertising reports, the scripts say so rather
+than letting an empty result look like a quiet RF environment.
 
 ## Optional GPS-assisted plotting
 
@@ -339,3 +364,23 @@ MediaTek AC1200-specific diagnostic report:
 - Address-only logic can miss rotating identities.
 - Signature matches are heuristic and defensive, not attribution-grade proof of a specific tool.
 - Coverage is strong for common scripted BLE spam patterns but not exhaustive for every custom payload seen during Hacker Summer Camp.
+
+## Contributing
+
+Testing on additional hardware is especially welcome. When reporting an issue,
+include the output of:
+
+```bash
+./scripts/troubleshoot-bluetooth.sh
+./tests/test-toolkit.sh
+```
+
+Please run `shellcheck -S warning -x scripts/*.sh tests/*.sh` before opening a
+pull request; CI enforces the same check.
+
+## License
+
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE).
+
+Apache-2.0 was chosen so the toolkit stays usable in both open source and
+corporate environments, and because it includes an explicit patent grant.

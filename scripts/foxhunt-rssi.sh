@@ -28,7 +28,11 @@ echo "Tracking ${TARGET_MAC} on ${IFACE}. Ctrl+C to stop."
 echo "Tip: walk slowly and watch the median RSSI trend rise as you approach source."
 
 tmpfile="$(mktemp)"
-trap 'rm -f "${tmpfile}"' EXIT
+trap 'stop_le_scan "${IFACE}"; rm -f "${tmpfile}"' EXIT
+
+start_le_scan "${IFACE}"
+
+total=0
 
 stdbuf -oL btmon -i "${IFACE}" 2>/dev/null | awk -v target="${TARGET_MAC}" '
   BEGIN {
@@ -48,9 +52,9 @@ stdbuf -oL btmon -i "${IFACE}" 2>/dev/null | awk -v target="${TARGET_MAC}" '
   }
 ' | while read -r rssi; do
   echo "${rssi}" >> "${tmpfile}"
-  count=$(wc -l < "${tmpfile}")
+  total=$((total + 1))
 
-  if (( count % 10 == 0 )); then
+  if (( total % 10 == 0 )); then
     med=$(sort -n "${tmpfile}" | awk ' {
       a[NR]=$1
     }
@@ -65,7 +69,8 @@ stdbuf -oL btmon -i "${IFACE}" 2>/dev/null | awk -v target="${TARGET_MAC}" '
       }
     }')
     latest=$(tail -n 1 "${tmpfile}")
-    echo "samples=${count} latest=${latest}dBm median10=${med}dBm"
+    window=$(wc -l < "${tmpfile}" | tr -d ' ')
+    echo "samples=${total} latest=${latest}dBm median${window}=${med}dBm"
 
     # Keep a sliding window of recent points for responsiveness.
     tail -n 40 "${tmpfile}" > "${tmpfile}.new"

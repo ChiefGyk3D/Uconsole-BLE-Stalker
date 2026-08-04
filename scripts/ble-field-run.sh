@@ -34,7 +34,13 @@ echo "Starting BLE field run on ${IFACE} for ${DURATION}s"
 echo "Capture log: ${CAPTURE_LOG}"
 echo "Summary file: ${SUMMARY_FILE}"
 
-timeout "${DURATION}" stdbuf -oL btmon -i "${IFACE}" 2>/dev/null | tee "${CAPTURE_LOG}" >/dev/null
+trap 'stop_le_scan "${IFACE}"' EXIT
+
+start_le_scan "${IFACE}"
+run_btmon_capture "${IFACE}" "${DURATION}" "${CAPTURE_LOG}" quiet
+stop_le_scan "${IFACE}"
+
+warn_if_capture_empty "${CAPTURE_LOG}"
 
 {
   echo "# BLE Field Summary"

@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Validate and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Seed local config from examples
+        run: |
+          cp config/interfaces.conf.example config/interfaces.conf
+          cp config/signatures.conf.example config/signatures.conf
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh tests/*.sh
+
+      - name: Run shellcheck
+        run: shellcheck -S warning -x scripts/*.sh tests/*.sh
+
+      - name: Run test suite
+        run: ./tests/test-toolkit.sh

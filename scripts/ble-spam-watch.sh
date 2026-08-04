@@ -26,9 +26,13 @@ echo "Monitoring ${IFACE} for ${DURATION}s. Alert threshold=${THRESHOLD} ads/add
 
 tmpfile="$(mktemp)"
 tmplog="$(mktemp)"
-trap 'rm -f "${tmpfile}" "${tmplog}"' EXIT
+trap 'stop_le_scan "${IFACE}"; rm -f "${tmpfile}" "${tmplog}"' EXIT
 
-timeout "${DURATION}" stdbuf -oL btmon -i "${IFACE}" 2>/dev/null | tee "${tmplog}" >/dev/null
+start_le_scan "${IFACE}"
+run_btmon_capture "${IFACE}" "${DURATION}" "${tmplog}" quiet
+stop_le_scan "${IFACE}"
+
+warn_if_capture_empty "${tmplog}"
 
 awk '
   /Address:/ {

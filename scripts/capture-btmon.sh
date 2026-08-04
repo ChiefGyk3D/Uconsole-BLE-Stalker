@@ -24,6 +24,12 @@ OUT="${ROOT_DIR}/logs/btmon-${IFACE}-$(now_stamp).log"
 echo "Capturing BLE monitor output on ${IFACE} for ${DURATION}s"
 echo "Log: ${OUT}"
 
-timeout "${DURATION}" stdbuf -oL btmon -i "${IFACE}" 2>/dev/null | tee "${OUT}"
+trap 'stop_le_scan "${IFACE}"' EXIT
+
+start_le_scan "${IFACE}"
+run_btmon_capture "${IFACE}" "${DURATION}" "${OUT}" tee
+stop_le_scan "${IFACE}"
+
+warn_if_capture_empty "${OUT}"
 
 echo "Capture complete."

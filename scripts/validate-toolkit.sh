@@ -80,13 +80,16 @@ check_shell_syntax() {
   check_file "tests/test-ble-signature-tuning.sh"
   check_file "tests/test-ble-signatures.sh"
   check_file "tests/test-capture-resilience.sh"
+  check_file "tests/test-le-scan-enable.sh"
   check_file "tests/test-config-parsing.sh"
+  check_file "tests/make-fixture.py"
   check_file "tests/test-toolkit.sh"
 
   for script in \
     scripts/lib.sh \
     scripts/detect-hci.sh \
     scripts/setup-linux.sh \
+    scripts/ble_parse.py \
     scripts/ble-signature-scan.py \
     scripts/ble-spam-watch.sh \
     scripts/capture-btmon.sh \

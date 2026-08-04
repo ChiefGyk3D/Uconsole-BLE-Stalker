@@ -297,7 +297,10 @@ stop_le_scan() {
   if [[ -n "${LE_SCAN_FD}" ]]; then
     printf 'scan off\n' >&"${LE_SCAN_FD}" || true
     printf 'quit\n' >&"${LE_SCAN_FD}" || true
-    exec {LE_SCAN_FD}>&- 2>/dev/null || true
+    # No '2>/dev/null' here. 'exec' with only redirections and no command
+    # applies them to the current shell permanently, so that would silence the
+    # caller's stderr for the rest of the run.
+    exec {LE_SCAN_FD}>&- || true
     LE_SCAN_FD=""
   fi
 

@@ -1,0 +1,222 @@
+#!/usr/bin/env python3
+"""Shared parser for btmon text captures.
+
+Both the signature scanner and the fingerprint tool need the same view of a
+capture, so the parsing lives here rather than being reimplemented per script.
+
+Two details of real btmon output drive the design:
+
+1. Every advertisement can appear twice. Once as an HCI event
+   ('> HCI Event: LE Meta Event') and again as a management event
+   ('@ MGMT Event: Device Found') when something like bluetoothd or
+   bluetoothctl holds an mgmt socket open. The HCI event is the ground truth,
+   so MGMT echoes are skipped; counting both roughly doubles every statistic.
+
+2. Field names are not what they are often assumed to be. btmon writes
+   'Name (complete):', not 'Complete local name:', and addresses appear as
+   'Address:', 'LE Address:', 'BR/EDR Address:' and 'Direct address:' in
+   different event types. Matching loosely on 'Address:' pulls in unrelated
+   events.
+"""
+
+import re
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional
+
+
+MAC_RE = re.compile(r"(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}")
+TIME_RE = re.compile(r"(\d+\.\d+)\s*$")
+INT_RE = re.compile(r"-?\d+")
+
+# btmon block markers. '>' host<-controller, '<' host->controller,
+# '@' management channel, '=' monitor note.
+BLOCK_RE = re.compile(r"^[><@=]\s")
+
+ADV_REPORT_RE = re.compile(
+    r"LE (?:Extended )?Advertising Report|LE Direct Advertising Report"
+)
+
+# Real btmon spelling first, then tolerant fallbacks so hand-written or
+# older-format fixtures still parse.
+NAME_RE = re.compile(
+    r"^\s*(?:Name \((?:complete|short)\)|(?:Complete |Shortened )?[Ll]ocal [Nn]ame)\s*:\s*(.+)$"
+)
+ADDRESS_RE = re.compile(r"^\s*(?:LE |BR/EDR )?Address\s*:\s*(" + MAC_RE.pattern + r")(.*)$")
+ADDR_TYPE_RE = re.compile(r"^\s*Address type\s*:\s*(\w+)")
+RSSI_RE = re.compile(r"^\s*RSSI\s*:\s*(-?\d+)")
+TXPOWER_RE = re.compile(r"^\s*TX power\s*:\s*(-?\d+)")
+COMPANY_RE = re.compile(r"^\s*Company\s*:\s*(.+?)\s*\((\d+)\)\s*$")
+MANUF_RE = re.compile(r"^\s*Manufacturer data\s*\(([^)]*)\)", re.IGNORECASE)
+SERVICE_DATA_RE = re.compile(r"^\s*Service Data\b.*?(0x[0-9A-Fa-f]{4})")
+UUID_RE = re.compile(r"^\s*(?:16-bit|32-bit|128-bit) Service UUIDs.*")
+UUID_VALUE_RE = re.compile(r"(0x[0-9A-Fa-f]{4})")
+FLAGS_RE = re.compile(r"^\s*Flags\s*:\s*(0x[0-9A-Fa-f]+)")
+PDU_RE = re.compile(r"^\s*(?:Legacy PDU Type|Event type)\s*:\s*(.+?)\s*$")
+DATA_LEN_RE = re.compile(r"^\s*Data length\s*:\s*(\d+)")
+
+FAST_PAIR_UUID = "0xfe2c"
+
+
+@dataclass
+class AdRecord:
+    """A single advertising report."""
+
+    address: str = ""
+    addr_type: str = ""
+    resolvable: bool = False
+    timestamp: Optional[float] = None
+    rssi: Optional[int] = None
+    tx_power: Optional[int] = None
+    name: str = ""
+    pdu_type: str = ""
+    flags: str = ""
+    data_length: Optional[int] = None
+    companies: List[str] = field(default_factory=list)
+    service_uuids: List[str] = field(default_factory=list)
+
+    @property
+    def is_random(self) -> bool:
+        return self.addr_type == "random"
+
+
+def _finish(record: Optional[AdRecord], out: List[AdRecord]) -> None:
+    if record is not None and record.address:
+        out.append(record)
+
+
+def parse_records(path: str) -> List[AdRecord]:
+    """Parse a btmon text log into advertising records.
+
+    Only HCI advertising reports are returned. MGMT 'Device Found' echoes of
+    the same advertisement are skipped so events are not counted twice.
+    """
+    records: List[AdRecord] = []
+    current: Optional[AdRecord] = None
+    in_adv_block = False
+    block_time: Optional[float] = None
+
+    with open(path, "r", encoding="utf-8", errors="ignore") as handle:
+        for raw in handle:
+            line = raw.rstrip("\n")
+
+            if BLOCK_RE.match(line):
+                # A new top-level event ends whatever came before.
+                _finish(current, records)
+                current = None
+
+                # Only HCI events carry advertising reports we want to count.
+                # '@' is the management channel, which duplicates them.
+                in_adv_block = line.startswith(">")
+                time_match = TIME_RE.search(line)
+                block_time = float(time_match.group(1)) if time_match else None
+                continue
+
+            if not in_adv_block:
+                continue
+
+            if ADV_REPORT_RE.search(line):
+                _finish(current, records)
+                current = None
+                continue
+
+            # 'Entry N' starts a new report inside a multi-report event.
+            if re.match(r"^\s*Entry \d+\s*$", line):
+                _finish(current, records)
+                current = AdRecord(timestamp=block_time)
+                continue
+
+            addr_match = ADDRESS_RE.match(line)
+            if addr_match:
+                # 'Direct address:' is the scan target, not the advertiser, and
+                # is excluded by the regex requiring 'Address:' with a capital A.
+                if current is None:
+                    current = AdRecord(timestamp=block_time)
+                if not current.address:
+                    current.address = addr_match.group(1).upper()
+                    current.resolvable = "Resolvable" in addr_match.group(2)
+                continue
+
+            if current is None:
+                continue
+
+            type_match = ADDR_TYPE_RE.match(line)
+            if type_match:
+                current.addr_type = type_match.group(1).strip().lower()
+                continue
+
+            rssi_match = RSSI_RE.match(line)
+            if rssi_match:
+                current.rssi = int(rssi_match.group(1))
+                continue
+
+            tx_match = TXPOWER_RE.match(line)
+            if tx_match:
+                value = int(tx_match.group(1))
+                # 127 is the 'not available' sentinel in the LE spec.
+                current.tx_power = None if value == 127 else value
+                continue
+
+            name_match = NAME_RE.match(line)
+            if name_match:
+                current.name = name_match.group(1).strip()
+                continue
+
+            company_match = COMPANY_RE.match(line)
+            if company_match:
+                current.companies.append(company_match.group(1).strip().lower())
+                continue
+
+            manuf_match = MANUF_RE.match(line)
+            if manuf_match:
+                vendor = manuf_match.group(1).strip().lower()
+                if vendor:
+                    current.companies.append(vendor)
+                continue
+
+            svc_match = SERVICE_DATA_RE.match(line)
+            if svc_match:
+                current.service_uuids.append(svc_match.group(1).lower())
+                continue
+
+            if UUID_RE.match(line):
+                for uuid in UUID_VALUE_RE.findall(line):
+                    current.service_uuids.append(uuid.lower())
+                continue
+
+            flags_match = FLAGS_RE.match(line)
+            if flags_match:
+                current.flags = flags_match.group(1).lower()
+                continue
+
+            len_match = DATA_LEN_RE.match(line)
+            if len_match:
+                current.data_length = int(len_match.group(1))
+                continue
+
+            pdu_match = PDU_RE.match(line)
+            if pdu_match and not current.pdu_type:
+                current.pdu_type = pdu_match.group(1).strip()
+                continue
+
+    _finish(current, records)
+    return records
+
+
+def capture_duration(records: List[AdRecord]) -> float:
+    """Wall-clock span of the capture in seconds.
+
+    Returns 0.0 when timestamps are unavailable so callers can fall back to
+    absolute counts instead of dividing by a fabricated duration.
+    """
+    stamps = [r.timestamp for r in records if r.timestamp is not None]
+    if len(stamps) < 2:
+        return 0.0
+    span = max(stamps) - min(stamps)
+    return span if span > 0 else 0.0
+
+
+def address_counts(records: List[AdRecord]) -> Dict[str, int]:
+    counts: Dict[str, int] = {}
+    for record in records:
+        counts[record.address] = counts.get(record.address, 0) + 1
+    return counts

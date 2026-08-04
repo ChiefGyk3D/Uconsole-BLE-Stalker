@@ -1,4 +1,34 @@
 #!/usr/bin/env python3
+"""Defensive BLE signature scanner for scripted spam/flood patterns.
+
+Detection is rate- and shape-based rather than count-based. The thresholds are
+calibrated against a capture taken on the BSidesLV floor at Tuscany Suites,
+which is deliberately close to the worst realistic case: a hotel full of
+security researchers and their gear. Two findings from that capture drive the
+design.
+
+* Ambient traffic at a busy venue is enormous. A 20 second sample measured 32
+  advertising events/sec across 159 distinct addresses. Absolute event counts
+  are therefore meaningless as evidence on their own, and any rule keyed on
+  "lots of events" will fire continuously at a conference.
+
+* Nearly all of that traffic uses random addresses. The same capture measured
+  a 0.94 random-address ratio, because modern phones and wearables advertise
+  with resolvable private addresses by default. A "mostly random addresses"
+  test is satisfied by an empty room and is not evidence of anything.
+
+What does separate spam from ambient is address reuse shape. Ordinary devices
+hold an address for minutes and are seen repeatedly (measured unique/event
+ratio 0.25, with 66% of addresses seen more than once). Tools that rotate the
+address on every advertisement push that ratio toward 1.0 with nearly every
+address seen exactly once. That shape is what the rules key on.
+
+A caveat worth stating plainly: at a hacker conference there is no such thing
+as a clean ambient baseline, because some of the ambient traffic genuinely is
+spam. Calibrating here biases toward fewer false positives at quieter venues,
+which is the safer direction to be wrong in.
+"""
+
 import argparse
 import configparser
 import os
@@ -7,36 +37,45 @@ import sys
 from dataclasses import dataclass
 from typing import Dict, List, Set
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import ble_parse  # noqa: E402
 
-MAC_RE = re.compile(r"([0-9A-F]{2}:){5}[0-9A-F]{2}", re.IGNORECASE)
-INT_RE = re.compile(r"-?\d+")
+
 LURE_NAME_RE = re.compile(
     r"airpods|beats|bose|jbl|pair|tracker|keyboard|mouse|speaker|iphone|galaxy",
     re.IGNORECASE,
 )
 APPLE_LIKE_RE = re.compile(r"airpods|beats|iphone|ipad|watch|airtag", re.IGNORECASE)
+APPLE_VENDOR_RE = re.compile(r"apple|0x004c", re.IGNORECASE)
+FAST_PAIR_RE = re.compile(r"fe2c", re.IGNORECASE)
+
+# Fallback window used only when a capture carries no usable timestamps.
+ASSUMED_DURATION_SEC = 30.0
 
 
 DEFAULT_RULES = {
     "conservative": {
-        "flipper_min_apple_mfg_events": 30,
+        "min_duration_sec": 10,
+        "flipper_min_apple_rate": 3.0,
         "flipper_min_unique_addrs": 16,
-        "flipper_min_random_ratio": 0.70,
+        "flipper_min_unique_ratio": 0.60,
         "flipper_min_lure_hits": 6,
-        "marauder_min_events": 120,
+        "marauder_min_event_rate": 20.0,
+        "marauder_min_unique_ratio": 0.70,
+        "marauder_min_singleton_ratio": 0.75,
         "marauder_min_unique_addrs": 60,
         "marauder_min_unique_names": 20,
         "marauder_min_vendor_diversity": 6,
-        "fastpair_min_events": 16,
+        "fastpair_min_rate": 1.5,
         "fastpair_min_unique_addrs": 12,
-        "generic_min_events": 90,
-        "generic_min_unique_ratio": 0.70,
-        "random_churn_min_events": 120,
-        "random_churn_min_unique_ratio": 0.80,
-        "random_churn_min_random_ratio": 0.85,
+        "generic_min_event_rate": 25.0,
+        "generic_min_unique_ratio": 0.75,
+        "random_churn_min_event_rate": 25.0,
+        "random_churn_min_unique_ratio": 0.85,
+        "random_churn_min_singleton_ratio": 0.85,
         "name_rotation_min_unique_names": 18,
         "name_rotation_min_lure_hits": 12,
-        "name_rotation_min_events": 100,
+        "name_rotation_min_event_rate": 15.0,
         "enable_flipper": True,
         "enable_marauder": True,
         "enable_fastpair": True,
@@ -45,24 +84,27 @@ DEFAULT_RULES = {
         "enable_name_rotation": True,
     },
     "balanced": {
-        "flipper_min_apple_mfg_events": 20,
+        "min_duration_sec": 5,
+        "flipper_min_apple_rate": 2.0,
         "flipper_min_unique_addrs": 10,
-        "flipper_min_random_ratio": 0.60,
+        "flipper_min_unique_ratio": 0.50,
         "flipper_min_lure_hits": 3,
-        "marauder_min_events": 80,
+        "marauder_min_event_rate": 12.0,
+        "marauder_min_unique_ratio": 0.60,
+        "marauder_min_singleton_ratio": 0.65,
         "marauder_min_unique_addrs": 40,
         "marauder_min_unique_names": 15,
         "marauder_min_vendor_diversity": 5,
-        "fastpair_min_events": 10,
+        "fastpair_min_rate": 0.8,
         "fastpair_min_unique_addrs": 8,
-        "generic_min_events": 60,
-        "generic_min_unique_ratio": 0.50,
-        "random_churn_min_events": 90,
-        "random_churn_min_unique_ratio": 0.70,
-        "random_churn_min_random_ratio": 0.80,
+        "generic_min_event_rate": 15.0,
+        "generic_min_unique_ratio": 0.60,
+        "random_churn_min_event_rate": 15.0,
+        "random_churn_min_unique_ratio": 0.75,
+        "random_churn_min_singleton_ratio": 0.75,
         "name_rotation_min_unique_names": 12,
         "name_rotation_min_lure_hits": 8,
-        "name_rotation_min_events": 75,
+        "name_rotation_min_event_rate": 10.0,
         "enable_flipper": True,
         "enable_marauder": True,
         "enable_fastpair": True,
@@ -71,24 +113,27 @@ DEFAULT_RULES = {
         "enable_name_rotation": True,
     },
     "aggressive": {
-        "flipper_min_apple_mfg_events": 12,
+        "min_duration_sec": 3,
+        "flipper_min_apple_rate": 0.8,
         "flipper_min_unique_addrs": 6,
-        "flipper_min_random_ratio": 0.50,
+        "flipper_min_unique_ratio": 0.35,
         "flipper_min_lure_hits": 2,
-        "marauder_min_events": 45,
+        "marauder_min_event_rate": 5.0,
+        "marauder_min_unique_ratio": 0.40,
+        "marauder_min_singleton_ratio": 0.45,
         "marauder_min_unique_addrs": 20,
         "marauder_min_unique_names": 8,
         "marauder_min_vendor_diversity": 3,
-        "fastpair_min_events": 6,
+        "fastpair_min_rate": 0.3,
         "fastpair_min_unique_addrs": 4,
-        "generic_min_events": 30,
+        "generic_min_event_rate": 6.0,
         "generic_min_unique_ratio": 0.40,
-        "random_churn_min_events": 45,
-        "random_churn_min_unique_ratio": 0.55,
-        "random_churn_min_random_ratio": 0.65,
+        "random_churn_min_event_rate": 6.0,
+        "random_churn_min_unique_ratio": 0.50,
+        "random_churn_min_singleton_ratio": 0.50,
         "name_rotation_min_unique_names": 6,
         "name_rotation_min_lure_hits": 4,
-        "name_rotation_min_events": 40,
+        "name_rotation_min_event_rate": 4.0,
         "enable_flipper": True,
         "enable_marauder": True,
         "enable_fastpair": True,
@@ -109,6 +154,8 @@ class Match:
 class Stats:
     def __init__(self) -> None:
         self.total_events = 0
+        self.duration = 0.0
+        self.duration_estimated = False
         self.unique_addrs: Set[str] = set()
         self.random_addrs: Set[str] = set()
         self.addr_counts: Dict[str, int] = {}
@@ -118,6 +165,38 @@ class Stats:
         self.fast_pair_events = 0
         self.vendor_hits: Dict[str, int] = {}
         self.apple_like_name_hits = 0
+
+    @property
+    def event_rate(self) -> float:
+        return self.total_events / max(self.duration, 0.001)
+
+    @property
+    def unique_ratio(self) -> float:
+        return len(self.unique_addrs) / max(1, self.total_events)
+
+    @property
+    def random_ratio(self) -> float:
+        return len(self.random_addrs) / max(1, len(self.unique_addrs))
+
+    @property
+    def singleton_ratio(self) -> float:
+        """Fraction of addresses observed exactly once.
+
+        The clearest separator between per-advertisement MAC rotation and
+        ordinary devices that hold an address for minutes.
+        """
+        if not self.addr_counts:
+            return 0.0
+        singles = sum(1 for count in self.addr_counts.values() if count == 1)
+        return singles / len(self.addr_counts)
+
+    @property
+    def apple_rate(self) -> float:
+        return self.apple_mfg_events / max(self.duration, 0.001)
+
+    @property
+    def fast_pair_rate(self) -> float:
+        return self.fast_pair_events / max(self.duration, 0.001)
 
 
 class SignatureConfig:
@@ -129,63 +208,42 @@ class SignatureConfig:
 
 def parse_log(path: str) -> Stats:
     stats = Stats()
-    last_addr = ""
-    last_addr_type = ""
 
     try:
-        with open(path, "r", encoding="utf-8", errors="ignore") as handle:
-            for raw in handle:
-                line = raw.strip()
-
-                if "Address type:" in line:
-                    if "Random" in line:
-                        last_addr_type = "random"
-                    elif "Public" in line:
-                        last_addr_type = "public"
-                    else:
-                        last_addr_type = ""
-
-                if "Address:" in line:
-                    mac_match = MAC_RE.search(line)
-                    if mac_match:
-                        addr = mac_match.group(0).upper()
-                        last_addr = addr
-                        stats.total_events += 1
-                        stats.unique_addrs.add(addr)
-                        stats.addr_counts[addr] = stats.addr_counts.get(addr, 0) + 1
-                        if last_addr_type == "random":
-                            stats.random_addrs.add(addr)
-
-                if "local name:" in line.lower():
-                    name = line.split(":", 1)[-1].strip()
-                    if name:
-                        stats.unique_names.add(name)
-                        if LURE_NAME_RE.search(name):
-                            stats.lure_name_hits += 1
-                        if APPLE_LIKE_RE.search(name):
-                            stats.apple_like_name_hits += 1
-
-                if "manufacturer" in line.lower() or "company:" in line.lower():
-                    vendor = ""
-                    if "(" in line and ")" in line:
-                        vendor = line.split("(", 1)[1].split(")", 1)[0].strip()
-                    elif ":" in line:
-                        vendor = line.split(":", 1)[-1].strip()
-                    vendor = vendor.lower()
-                    if vendor:
-                        stats.vendor_hits[vendor] = stats.vendor_hits.get(vendor, 0) + 1
-                    if "apple" in vendor or "0x004c" in vendor or "4c00" in line.lower():
-                        stats.apple_mfg_events += 1
-
-                if "fe2c" in line.lower() or "fast pair" in line.lower():
-                    stats.fast_pair_events += 1
-
-                if last_addr and "RSSI:" in line:
-                    _ = INT_RE.search(line)
-
+        records = ble_parse.parse_records(path)
     except FileNotFoundError:
         print(f"ERROR: input file not found: {path}", file=sys.stderr)
         sys.exit(2)
+
+    stats.total_events = len(records)
+    duration = ble_parse.capture_duration(records)
+    if duration <= 0:
+        stats.duration = ASSUMED_DURATION_SEC
+        stats.duration_estimated = True
+    else:
+        stats.duration = duration
+
+    for record in records:
+        stats.unique_addrs.add(record.address)
+        stats.addr_counts[record.address] = stats.addr_counts.get(record.address, 0) + 1
+        if record.is_random:
+            stats.random_addrs.add(record.address)
+
+        if record.name:
+            stats.unique_names.add(record.name)
+            if LURE_NAME_RE.search(record.name):
+                stats.lure_name_hits += 1
+            if APPLE_LIKE_RE.search(record.name):
+                stats.apple_like_name_hits += 1
+
+        for vendor in record.companies:
+            stats.vendor_hits[vendor] = stats.vendor_hits.get(vendor, 0) + 1
+            if APPLE_VENDOR_RE.search(vendor):
+                stats.apple_mfg_events += 1
+
+        for uuid in record.service_uuids:
+            if FAST_PAIR_RE.search(uuid):
+                stats.fast_pair_events += 1
 
     return stats
 
@@ -240,6 +298,8 @@ def load_config(profile: str, config_path: str) -> SignatureConfig:
     if parser.has_section(selected_profile):
         for key, value in parser.items(selected_profile):
             base = rules.get(key)
+            if base is None:
+                continue
             if isinstance(base, bool):
                 rules[key] = value.strip().lower() in ("1", "true", "yes", "on")
             elif isinstance(base, float):
@@ -263,46 +323,57 @@ def evaluate(stats: Stats, cfg: SignatureConfig) -> List[Match]:
     if stats.total_events == 0:
         return matches
 
+    # Very short captures produce unstable rates; a two second sample can look
+    # like anything. Require a minimum observation window before judging.
+    if stats.duration < get_int(cfg.rules, "min_duration_sec"):
+        return matches
+
     unique_count = len(stats.unique_addrs)
-    random_count = len(stats.random_addrs)
-    unique_ratio = unique_count / max(1, stats.total_events)
-    random_ratio = random_count / max(1, unique_count)
+    rate = stats.event_rate
+    unique_ratio = stats.unique_ratio
+    singleton_ratio = stats.singleton_ratio
 
     if (
         get_bool(cfg.rules, "enable_flipper")
-        and stats.apple_mfg_events >= get_int(cfg.rules, "flipper_min_apple_mfg_events")
+        and stats.apple_rate >= get_float(cfg.rules, "flipper_min_apple_rate")
         and unique_count >= get_int(cfg.rules, "flipper_min_unique_addrs")
-        and random_ratio >= get_float(cfg.rules, "flipper_min_random_ratio")
+        and unique_ratio >= get_float(cfg.rules, "flipper_min_unique_ratio")
         and stats.lure_name_hits >= get_int(cfg.rules, "flipper_min_lure_hits")
     ):
-        score = 45 + (stats.apple_mfg_events // 4) + int(random_ratio * 15) + min(stats.lure_name_hits, 15)
+        score = 45 + int(stats.apple_rate * 2) + int(unique_ratio * 20) + min(stats.lure_name_hits, 15)
         matches.append(
             Match(
                 name="Flipper-like Apple popup spam pattern",
                 confidence=clamp_confidence(score),
                 evidence=(
-                    f"apple_mfg_events={stats.apple_mfg_events}, unique_addrs={unique_count}, "
-                    f"random_ratio={random_ratio:.2f}, lure_name_hits={stats.lure_name_hits}"
+                    f"apple_rate={stats.apple_rate:.1f}/s, unique_addrs={unique_count}, "
+                    f"unique_ratio={unique_ratio:.2f}, lure_name_hits={stats.lure_name_hits}"
                 ),
             )
         )
 
+    # Address churn and reuse shape are required here. Vendor diversity alone
+    # matched any populated area, since a conference floor already shows half a
+    # dozen manufacturers within seconds.
     if (
         get_bool(cfg.rules, "enable_marauder")
-        and stats.total_events >= get_int(cfg.rules, "marauder_min_events")
+        and rate >= get_float(cfg.rules, "marauder_min_event_rate")
         and unique_count >= get_int(cfg.rules, "marauder_min_unique_addrs")
+        and unique_ratio >= get_float(cfg.rules, "marauder_min_unique_ratio")
+        and singleton_ratio >= get_float(cfg.rules, "marauder_min_singleton_ratio")
         and (
             len(stats.unique_names) >= get_int(cfg.rules, "marauder_min_unique_names")
             or len(stats.vendor_hits) >= get_int(cfg.rules, "marauder_min_vendor_diversity")
         )
     ):
-        score = 50 + min(stats.total_events // 10, 20) + min(unique_count // 8, 15)
+        score = 50 + min(int(rate), 20) + int(singleton_ratio * 15)
         matches.append(
             Match(
                 name="Marauder-like rotating beacon flood",
                 confidence=clamp_confidence(score),
                 evidence=(
-                    f"events={stats.total_events}, unique_addrs={unique_count}, "
+                    f"rate={rate:.1f}/s, unique_addrs={unique_count}, "
+                    f"unique_ratio={unique_ratio:.2f}, singleton_ratio={singleton_ratio:.2f}, "
                     f"unique_names={len(stats.unique_names)}, vendor_diversity={len(stats.vendor_hits)}"
                 ),
             )
@@ -310,53 +381,62 @@ def evaluate(stats: Stats, cfg: SignatureConfig) -> List[Match]:
 
     if (
         get_bool(cfg.rules, "enable_fastpair")
-        and stats.fast_pair_events >= get_int(cfg.rules, "fastpair_min_events")
+        and stats.fast_pair_rate >= get_float(cfg.rules, "fastpair_min_rate")
         and unique_count >= get_int(cfg.rules, "fastpair_min_unique_addrs")
     ):
-        score = 55 + min(stats.fast_pair_events // 2, 20)
+        score = 55 + min(int(stats.fast_pair_rate * 8), 20)
         matches.append(
             Match(
                 name="Fast Pair lure flood pattern",
                 confidence=clamp_confidence(score),
-                evidence=f"fast_pair_events={stats.fast_pair_events}, unique_addrs={unique_count}",
+                evidence=(
+                    f"fast_pair_rate={stats.fast_pair_rate:.2f}/s, "
+                    f"fast_pair_events={stats.fast_pair_events}, unique_addrs={unique_count}"
+                ),
             )
         )
 
     if (
         get_bool(cfg.rules, "enable_generic")
-        and stats.total_events >= get_int(cfg.rules, "generic_min_events")
+        and rate >= get_float(cfg.rules, "generic_min_event_rate")
         and unique_ratio >= get_float(cfg.rules, "generic_min_unique_ratio")
     ):
-        score = 35 + min(stats.total_events // 8, 25) + int(unique_ratio * 20)
+        score = 35 + min(int(rate), 25) + int(unique_ratio * 20)
         matches.append(
             Match(
                 name="Generic BLE spam burst",
                 confidence=clamp_confidence(score),
-                evidence=f"events={stats.total_events}, unique_ratio={unique_ratio:.2f}, random_addrs={random_count}",
+                evidence=(
+                    f"rate={rate:.1f}/s, unique_ratio={unique_ratio:.2f}, "
+                    f"random_addrs={len(stats.random_addrs)}"
+                ),
             )
         )
 
+    # Deliberately keyed on reuse shape, not on the random-address ratio.
+    # Ambient traffic measured a 0.94 random ratio, so that test alone is
+    # useless; per-advertisement rotation shows up as singletons instead.
     if (
         get_bool(cfg.rules, "enable_random_churn")
-        and stats.total_events >= get_int(cfg.rules, "random_churn_min_events")
+        and rate >= get_float(cfg.rules, "random_churn_min_event_rate")
         and unique_ratio >= get_float(cfg.rules, "random_churn_min_unique_ratio")
-        and random_ratio >= get_float(cfg.rules, "random_churn_min_random_ratio")
+        and singleton_ratio >= get_float(cfg.rules, "random_churn_min_singleton_ratio")
     ):
-        score = 40 + int(unique_ratio * 25) + int(random_ratio * 20)
+        score = 40 + int(unique_ratio * 25) + int(singleton_ratio * 20)
         matches.append(
             Match(
                 name="Random-address churn flood",
                 confidence=clamp_confidence(score),
                 evidence=(
-                    f"events={stats.total_events}, unique_ratio={unique_ratio:.2f}, "
-                    f"random_ratio={random_ratio:.2f}"
+                    f"rate={rate:.1f}/s, unique_ratio={unique_ratio:.2f}, "
+                    f"singleton_ratio={singleton_ratio:.2f}, random_ratio={stats.random_ratio:.2f}"
                 ),
             )
         )
 
     if (
         get_bool(cfg.rules, "enable_name_rotation")
-        and stats.total_events >= get_int(cfg.rules, "name_rotation_min_events")
+        and rate >= get_float(cfg.rules, "name_rotation_min_event_rate")
         and len(stats.unique_names) >= get_int(cfg.rules, "name_rotation_min_unique_names")
         and stats.lure_name_hits >= get_int(cfg.rules, "name_rotation_min_lure_hits")
     ):
@@ -381,7 +461,12 @@ def print_summary(stats: Stats, matches: List[Match], quiet: bool, cfg: Signatur
         print(f"profile={cfg.profile}")
         print(f"config_source={cfg.source}")
         print(f"events={stats.total_events}")
+        duration_note = " (estimated: capture had no timestamps)" if stats.duration_estimated else ""
+        print(f"duration_sec={stats.duration:.1f}{duration_note}")
+        print(f"event_rate_per_sec={stats.event_rate:.1f}")
         print(f"unique_addresses={len(stats.unique_addrs)}")
+        print(f"unique_ratio={stats.unique_ratio:.3f}")
+        print(f"singleton_ratio={stats.singleton_ratio:.3f}")
         print(f"random_addresses={len(stats.random_addrs)}")
         print(f"unique_names={len(stats.unique_names)}")
         print(f"apple_mfg_events={stats.apple_mfg_events}")

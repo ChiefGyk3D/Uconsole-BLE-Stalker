@@ -21,5 +21,6 @@ grep -q "Validation complete" "${REPORT}"
 
 "${ROOT_DIR}/tests/test-ble-gps-merge-optional.sh"
 "${ROOT_DIR}/tests/test-ble-signatures.sh"
+"${ROOT_DIR}/tests/test-ble-signature-tuning.sh"
 
 echo "Toolkit validation smoke test passed."

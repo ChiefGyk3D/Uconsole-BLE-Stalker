@@ -22,11 +22,13 @@ for i in $(seq 1 100); do
   printf 'RSSI: -60 dBm\n' >> "${SAMPLE_LOG}"
 done
 
-python3 "${ROOT_DIR}/scripts/ble-signature-scan.py" --input "${SAMPLE_LOG}" > "${OUT_FILE}"
+python3 "${ROOT_DIR}/scripts/ble-signature-scan.py" --input "${SAMPLE_LOG}" --profile aggressive > "${OUT_FILE}"
 
 grep -q 'MATCH Flipper-like Apple popup spam pattern' "${OUT_FILE}"
 grep -q 'MATCH Marauder-like rotating beacon flood' "${OUT_FILE}"
 grep -q 'MATCH Fast Pair lure flood pattern' "${OUT_FILE}"
 grep -q 'MATCH Generic BLE spam burst' "${OUT_FILE}"
+grep -q 'MATCH Random-address churn flood' "${OUT_FILE}"
+grep -q 'MATCH Lure-name rotation burst' "${OUT_FILE}"
 
 echo "BLE signature detection test passed."

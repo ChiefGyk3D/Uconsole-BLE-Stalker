@@ -2,6 +2,12 @@
 
 This page helps diagnose Bluetooth adapter issues on uConsole and Raspberry Pi OS.
 
+Primary support target:
+- uConsole + AIO v2
+
+Secondary support target:
+- Other Linux devices on a best-effort basis
+
 ## One-command diagnosis
 
 Run the automated report script:
@@ -134,6 +140,21 @@ python3 scripts/ble-signature-scan.py --input logs/btmon-hci0-YYYYMMDD-HHMMSS.lo
 ```
 
 This scanner is defensive and heuristic-based. It reports likely pattern families (for example Flipper-like, Marauder-like, Fast Pair lure flood, generic burst) with confidence and evidence, but it cannot prove attribution to a specific tool.
+
+### Signature tuning
+
+Copy and tune profile values for your RF environment:
+
+```bash
+cp config/signatures.conf.example config/signatures.conf
+nano config/signatures.conf
+```
+
+You can switch profile directly per run:
+
+```bash
+python3 scripts/ble-signature-scan.py --input logs/btmon-hci0-YYYYMMDD-HHMMSS.log --profile aggressive
+```
 
 ## Validation and regression checks
 

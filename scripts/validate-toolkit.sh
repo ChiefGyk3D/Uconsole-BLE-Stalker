@@ -64,12 +64,16 @@ check_shell_syntax() {
   check_file "config/interfaces.conf.example"
   check_file "config/interfaces.conf"
   check_file "config/aio-features.conf.example"
+  check_file "config/signatures.conf.example"
+  check_file "config/signatures.conf"
+  check_file "tests/test-ble-signature-tuning.sh"
   check_file "tests/test-ble-signatures.sh"
   check_file "tests/test-toolkit.sh"
 
   for script in \
     scripts/lib.sh \
     scripts/detect-hci.sh \
+    scripts/setup-linux.sh \
     scripts/ble-signature-scan.py \
     scripts/ble-spam-watch.sh \
     scripts/capture-btmon.sh \

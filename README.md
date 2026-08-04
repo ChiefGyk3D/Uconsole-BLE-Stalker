@@ -2,6 +2,12 @@
 
 Defensive BLE monitoring toolkit for conference environments (DEF CON, BSides) using ClockworkPi uConsole.
 
+Primary configuration target:
+- uConsole with AIO v2
+
+Secondary configuration target:
+- Other Linux devices (laptops, mini PCs, SBCs) on a best-effort basis
+
 This toolkit is designed for a dual-adapter setup:
 - CM4 built-in Bluetooth (usually `hci0`) for broad monitoring
 - External adapter (usually `hci1`) for focused foxhunt tracking
@@ -29,9 +35,18 @@ This toolkit is passive monitoring only. Do not transmit, jam, deauth, or interf
 
 ## Install (Raspberry Pi OS / Debian)
 
+Primary path (uConsole + AIO v2):
+
 ```bash
 cd uconsole-ble-foxhunt-toolkit
 sudo ./scripts/setup-pi.sh
+```
+
+Secondary path (other apt-based Linux devices):
+
+```bash
+cd uconsole-ble-foxhunt-toolkit
+sudo ./scripts/setup-linux.sh
 ```
 
 If `btmon` is reported missing, install `bluez`.
@@ -86,11 +101,23 @@ At the end of each sweep, the script also runs a defensive signature scan and re
 - Marauder-like rotating beacon flood
 - Fast Pair lure flood pattern
 - Generic BLE spam burst
+- Random-address churn flood
+- Lure-name rotation burst
 
 Arguments:
 - interface (default from config)
 - duration seconds
 - alert threshold (ads per address during window)
+
+Signature tuning options:
+- sensitivity profile: conservative, balanced, aggressive
+- optional local overrides via config/signatures.conf
+
+Example:
+
+```bash
+python3 scripts/ble-signature-scan.py --input logs/btmon-hci0-YYYYMMDD-HHMMSS.log --profile conservative
+```
 
 ### 2) Raw capture for later analysis
 
@@ -276,4 +303,5 @@ MediaTek AC1200-specific diagnostic report:
 
 - BLE spammers may rotate MAC addresses quickly.
 - Address-only logic can miss rotating identities.
-- For stronger fingerprinting, extend parser with manufacturer/service payload signatures from logs.
+- Signature matches are heuristic and defensive, not attribution-grade proof of a specific tool.
+- Coverage is strong for common scripted BLE spam patterns but not exhaustive for every custom payload seen during Hacker Summer Camp.

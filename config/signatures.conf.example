@@ -1,0 +1,83 @@
+# Copy to config/signatures.conf and tune for your environment.
+
+[general]
+# conservative | balanced | aggressive
+profile = balanced
+
+[balanced]
+flipper_min_apple_mfg_events = 20
+flipper_min_unique_addrs = 10
+flipper_min_random_ratio = 0.60
+flipper_min_lure_hits = 3
+marauder_min_events = 80
+marauder_min_unique_addrs = 40
+marauder_min_unique_names = 15
+marauder_min_vendor_diversity = 5
+fastpair_min_events = 10
+fastpair_min_unique_addrs = 8
+generic_min_events = 60
+generic_min_unique_ratio = 0.50
+random_churn_min_events = 90
+random_churn_min_unique_ratio = 0.70
+random_churn_min_random_ratio = 0.80
+name_rotation_min_unique_names = 12
+name_rotation_min_lure_hits = 8
+name_rotation_min_events = 75
+enable_flipper = true
+enable_marauder = true
+enable_fastpair = true
+enable_generic = true
+enable_random_churn = true
+enable_name_rotation = true
+
+[conservative]
+flipper_min_apple_mfg_events = 30
+flipper_min_unique_addrs = 16
+flipper_min_random_ratio = 0.70
+flipper_min_lure_hits = 6
+marauder_min_events = 120
+marauder_min_unique_addrs = 60
+marauder_min_unique_names = 20
+marauder_min_vendor_diversity = 6
+fastpair_min_events = 16
+fastpair_min_unique_addrs = 12
+generic_min_events = 90
+generic_min_unique_ratio = 0.70
+random_churn_min_events = 120
+random_churn_min_unique_ratio = 0.80
+random_churn_min_random_ratio = 0.85
+name_rotation_min_unique_names = 18
+name_rotation_min_lure_hits = 12
+name_rotation_min_events = 100
+enable_flipper = true
+enable_marauder = true
+enable_fastpair = true
+enable_generic = true
+enable_random_churn = true
+enable_name_rotation = true
+
+[aggressive]
+flipper_min_apple_mfg_events = 12
+flipper_min_unique_addrs = 6
+flipper_min_random_ratio = 0.50
+flipper_min_lure_hits = 2
+marauder_min_events = 45
+marauder_min_unique_addrs = 20
+marauder_min_unique_names = 8
+marauder_min_vendor_diversity = 3
+fastpair_min_events = 6
+fastpair_min_unique_addrs = 4
+generic_min_events = 30
+generic_min_unique_ratio = 0.40
+random_churn_min_events = 45
+random_churn_min_unique_ratio = 0.55
+random_churn_min_random_ratio = 0.65
+name_rotation_min_unique_names = 6
+name_rotation_min_lure_hits = 4
+name_rotation_min_events = 40
+enable_flipper = true
+enable_marauder = true
+enable_fastpair = true
+enable_generic = true
+enable_random_churn = true
+enable_name_rotation = true

@@ -19,4 +19,6 @@ fi
 
 grep -q "Validation complete" "${REPORT}"
 
+"${ROOT_DIR}/tests/test-ble-gps-merge-optional.sh"
+
 echo "Toolkit validation smoke test passed."

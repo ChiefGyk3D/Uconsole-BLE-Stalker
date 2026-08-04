@@ -153,11 +153,13 @@ This checks shell syntax for the toolkit scripts, confirms the core config files
 
 ## Optional GPS-assisted plotting
 
-For future mapping work, you can merge BLE observations with GPS coordinates into a CSV that is easy to plot:
+For future mapping work, you can merge BLE observations with GPS coordinates into a CSV that is easy to plot. GPS is optional, so the workflow still works if the GPS source is unavailable or unreliable:
 
 ```bash
 python3 scripts/ble-gps-merge.py --gps /path/to/gps.csv --ble /path/to/ble.csv --output logs/ble-gps-plot.csv
 ```
+
+If you omit `--gps`, the script still writes the BLE rows and leaves the latitude/longitude fields blank.
 
 See `docs/gps-plotting-notes.md` for the intended workflow and output schema.
 

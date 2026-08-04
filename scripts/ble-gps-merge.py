@@ -121,24 +121,32 @@ def write_output(path: str, merged_rows: List[Tuple[float, str, float, float, fl
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description='Merge BLE observations with GPS coordinates for later plotting')
-    parser.add_argument('--gps', required=True, help='GPS input file (CSV or NMEA)')
+    parser = argparse.ArgumentParser(description='Merge BLE observations with optional GPS coordinates for later plotting')
+    parser.add_argument('--gps', default=None, help='Optional GPS input file (CSV or NMEA). If omitted, latitude/longitude will be left blank.')
     parser.add_argument('--ble', required=True, help='BLE input file (CSV or simple text)')
     parser.add_argument('--output', default='logs/ble-gps-plot.csv', help='Output CSV for plotting')
     args = parser.parse_args()
 
-    gps_points = parse_gps_file(args.gps)
+    gps_points = []
+    if args.gps:
+        gps_points = parse_gps_file(args.gps)
     ble_rows = parse_ble_file(args.ble)
-    if not gps_points:
-        print('No GPS points parsed; ensure the input contains timestamps and coordinates.', file=sys.stderr)
-        return 1
     if not ble_rows:
         print('No BLE rows parsed; ensure the input contains MAC/RSSI data.', file=sys.stderr)
         return 1
 
+    gps_available = bool(args.gps) and bool(gps_points)
+    if args.gps and not gps_available:
+        print('No GPS points parsed; continuing with blank latitude/longitude values.', file=sys.stderr)
+
     merged_rows = []
     for ts, mac, rssi in ble_rows:
-        gps_ts, lat, lon = nearest_gps(ts, gps_points)
+        if gps_available:
+            gps_ts, lat, lon = nearest_gps(ts, gps_points)
+        else:
+            gps_ts = ts
+            lat = ''
+            lon = ''
         merged_rows.append((gps_ts, mac, rssi, lat, lon))
 
     output_path = args.output

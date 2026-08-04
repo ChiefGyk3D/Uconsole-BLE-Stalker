@@ -143,7 +143,7 @@ If you want to start correlating BLE observations with GPS positions, use:
 python3 scripts/ble-gps-merge.py --gps /path/to/gps.csv --ble /path/to/ble.csv --output logs/ble-gps-plot.csv
 ```
 
-That produces a simple CSV suitable for later plotting or map overlays.
+GPS is optional. If GPS is missing, stale, or unreliable, you can omit `--gps` and the script will still write the BLE rows with blank latitude/longitude fields for later plotting when a GPS source becomes available.
 
 ## Shareable debug bundle
 

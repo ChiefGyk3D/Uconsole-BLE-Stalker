@@ -12,6 +12,8 @@ This repo now includes an optional bridge from BLE capture data to GPS coordinat
 python3 scripts/ble-gps-merge.py --gps /path/to/gps.csv --ble /path/to/ble.csv --output logs/ble-gps-plot.csv
 ```
 
+If GPS is unavailable, omit `--gps` and the output will still contain the BLE rows with blank latitude/longitude values.
+
 4. Plot the resulting CSV in a spreadsheet, Python notebook, or GIS tool.
 
 ## Expected CSV output

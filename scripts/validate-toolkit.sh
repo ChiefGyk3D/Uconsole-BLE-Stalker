@@ -41,7 +41,13 @@ check_file() {
 
 check_shell_syntax() {
   local script="$1"
-  if bash -n "${ROOT_DIR}/${script}" >/dev/null 2>&1; then
+  if [[ "${script}" == *.py ]]; then
+    if python3 -m py_compile "${ROOT_DIR}/${script}" >/dev/null 2>&1; then
+      record_pass "Syntax OK: ${script}"
+    else
+      record_fail "Syntax error: ${script}"
+    fi
+  elif bash -n "${ROOT_DIR}/${script}" >/dev/null 2>&1; then
     record_pass "Syntax OK: ${script}"
   else
     record_fail "Syntax error: ${script}"
@@ -58,11 +64,13 @@ check_shell_syntax() {
   check_file "config/interfaces.conf.example"
   check_file "config/interfaces.conf"
   check_file "config/aio-features.conf.example"
+  check_file "tests/test-ble-signatures.sh"
   check_file "tests/test-toolkit.sh"
 
   for script in \
     scripts/lib.sh \
     scripts/detect-hci.sh \
+    scripts/ble-signature-scan.py \
     scripts/ble-spam-watch.sh \
     scripts/capture-btmon.sh \
     scripts/foxhunt-rssi.sh \

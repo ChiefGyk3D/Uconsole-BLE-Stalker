@@ -125,6 +125,16 @@ If you are using the HackerGadgets AC1200 USB-C Wi-Fi card, run:
 
 This collects USB inventory, controller visibility, rfkill state, module load info, and relevant Bluetooth/MediaTek dmesg lines into a log file under `logs/`.
 
+## Signature scan for common scripted spam
+
+Run against any btmon capture:
+
+```bash
+python3 scripts/ble-signature-scan.py --input logs/btmon-hci0-YYYYMMDD-HHMMSS.log
+```
+
+This scanner is defensive and heuristic-based. It reports likely pattern families (for example Flipper-like, Marauder-like, Fast Pair lure flood, generic burst) with confidence and evidence, but it cannot prove attribution to a specific tool.
+
 ## Validation and regression checks
 
 Before heading to the field, run:

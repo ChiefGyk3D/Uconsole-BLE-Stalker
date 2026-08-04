@@ -9,6 +9,7 @@ load_config
 need_cmd btmon
 need_cmd hciconfig
 need_cmd timeout
+need_cmd tee
 need_root
 
 IFACE="${1:-}"
@@ -24,9 +25,12 @@ fi
 echo "Monitoring ${IFACE} for ${DURATION}s. Alert threshold=${THRESHOLD} ads/address"
 
 tmpfile="$(mktemp)"
-trap 'rm -f "${tmpfile}"' EXIT
+tmplog="$(mktemp)"
+trap 'rm -f "${tmpfile}" "${tmplog}"' EXIT
 
-timeout "${DURATION}" stdbuf -oL btmon -i "${IFACE}" 2>/dev/null | awk '
+timeout "${DURATION}" stdbuf -oL btmon -i "${IFACE}" 2>/dev/null | tee "${tmplog}" >/dev/null
+
+awk '
   /Address:/ {
     addr=$2
     gsub(",", "", addr)
@@ -39,7 +43,7 @@ timeout "${DURATION}" stdbuf -oL btmon -i "${IFACE}" 2>/dev/null | awk '
       printf "%s %d\n", a, counts[a]
     }
   }
-' | sort -k2,2nr > "${tmpfile}"
+' "${tmplog}" | sort -k2,2nr > "${tmpfile}"
 
 echo
 echo "Top advertisers:"
@@ -48,3 +52,12 @@ head -n 20 "${tmpfile}" | awk '{printf "%-20s %s\n", $1, $2}'
 echo
 echo "Potential spam senders (>=${THRESHOLD}):"
 awk -v t="${THRESHOLD}" '$2 >= t {printf "ALERT %-20s %s ads\n", $1, $2}' "${tmpfile}" || true
+
+if command -v python3 >/dev/null 2>&1; then
+  echo
+  echo "Signature scan (defensive heuristics):"
+  python3 "${SCRIPT_DIR}/ble-signature-scan.py" --input "${tmplog}" || true
+else
+  echo
+  echo "Signature scan skipped: python3 not available."
+fi

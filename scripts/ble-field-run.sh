@@ -111,6 +111,14 @@ timeout "${DURATION}" stdbuf -oL btmon -i "${IFACE}" 2>/dev/null | tee "${CAPTUR
       }
     }
   ' "${CAPTURE_LOG}" | sort -k2,2nr | head -n 20
+
+  echo
+  echo "## Signature scan (defensive heuristics)"
+  if command -v python3 >/dev/null 2>&1; then
+    python3 "${SCRIPT_DIR}/ble-signature-scan.py" --input "${CAPTURE_LOG}" || true
+  else
+    echo "python3 not available; signature scan skipped"
+  fi
 } > "${SUMMARY_FILE}"
 
 echo

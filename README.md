@@ -21,6 +21,7 @@ This toolkit is passive monitoring only. Do not transmit, jam, deauth, or interf
 - Discover available HCI adapters
 - Capture raw BLE monitor output via `btmon`
 - Summarize top BLE advertisers and flag high-rate senders
+- Match defensive signatures for common scripted BLE spam/flood behaviors
 - Live target RSSI tracking for hot/cold foxhunt movement
 - Optional dual-pane tmux session for monitor + hunt workflow
 - One-command capture plus summary report for field sessions
@@ -80,6 +81,12 @@ Mode behavior:
 sudo ./scripts/ble-spam-watch.sh
 ```
 
+At the end of each sweep, the script also runs a defensive signature scan and reports likely matches such as:
+- Flipper-like Apple popup spam pattern
+- Marauder-like rotating beacon flood
+- Fast Pair lure flood pattern
+- Generic BLE spam burst
+
 Arguments:
 - interface (default from config)
 - duration seconds
@@ -120,6 +127,8 @@ sudo ./scripts/ble-field-run.sh
 Outputs:
 - `logs/btmon-<iface>-<timestamp>.log`
 - `logs/summary-<iface>-<timestamp>.txt`
+
+The summary now includes a signature scan section based on the captured `btmon` log.
 
 ### 6) AIO feature profile modes (disable unused subsystems)
 

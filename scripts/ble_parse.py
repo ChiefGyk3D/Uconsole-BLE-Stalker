@@ -57,13 +57,42 @@ DATA_LEN_RE = re.compile(r"^\s*Data length\s*:\s*(\d+)")
 FAST_PAIR_UUID = "0xfe2c"
 
 
+def classify_address(suffix: str) -> str:
+    """Classify an advertiser address from btmon's parenthesised suffix.
+
+    btmon annotates addresses with one of:
+
+      (Resolvable)      private, rotates roughly every 15 minutes
+      (Non-Resolvable)  private, also rotates
+      (Static)          random static, stable until the device reboots
+      (Intel Corporate) / (OUI 40-ED-98) / vendor name
+                        a public address, resolved against the OUI registry
+
+    Note that 'Non-Resolvable' contains 'Resolvable' as a substring, so a naive
+    containment test silently mislabels it. Both rotate, but they are different
+    address types and the distinction matters when reasoning about tracking.
+    """
+    text = suffix.strip().strip("()").strip()
+    lowered = text.lower()
+    if lowered == "non-resolvable":
+        return "non-resolvable"
+    if lowered == "resolvable":
+        return "resolvable"
+    if lowered == "static":
+        return "static"
+    if text:
+        # Anything else is an OUI or vendor name, which only public addresses get.
+        return "public"
+    return "unknown"
+
+
 @dataclass
 class AdRecord:
     """A single advertising report."""
 
     address: str = ""
     addr_type: str = ""
-    resolvable: bool = False
+    addr_class: str = "unknown"
     timestamp: Optional[float] = None
     rssi: Optional[int] = None
     tx_power: Optional[int] = None
@@ -77,6 +106,19 @@ class AdRecord:
     @property
     def is_random(self) -> bool:
         return self.addr_type == "random"
+
+    @property
+    def resolvable(self) -> bool:
+        return self.addr_class == "resolvable"
+
+    @property
+    def rotates(self) -> bool:
+        """True when the address cannot be relied on as a stable identity."""
+        return self.addr_class in ("resolvable", "non-resolvable", "unknown")
+
+    @property
+    def is_public(self) -> bool:
+        return self.addr_class == "public" or self.addr_type == "public"
 
 
 def _finish(record: Optional[AdRecord], out: List[AdRecord]) -> None:
@@ -133,7 +175,7 @@ def parse_records(path: str) -> List[AdRecord]:
                     current = AdRecord(timestamp=block_time)
                 if not current.address:
                     current.address = addr_match.group(1).upper()
-                    current.resolvable = "Resolvable" in addr_match.group(2)
+                    current.addr_class = classify_address(addr_match.group(2))
                 continue
 
             if current is None:

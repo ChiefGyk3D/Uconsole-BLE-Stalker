@@ -79,6 +79,7 @@ check_shell_syntax() {
   check_optional_file "config/signatures.conf" "copy from config/signatures.conf.example"
   check_file "tests/test-ble-signature-tuning.sh"
   check_file "tests/test-ble-signatures.sh"
+  check_file "tests/test-ble-fingerprint.sh"
   check_file "tests/test-capture-resilience.sh"
   check_file "tests/test-le-scan-enable.sh"
   check_file "tests/test-config-parsing.sh"
@@ -90,6 +91,7 @@ check_shell_syntax() {
     scripts/detect-hci.sh \
     scripts/setup-linux.sh \
     scripts/ble_parse.py \
+    scripts/ble-fingerprint.py \
     scripts/ble-signature-scan.py \
     scripts/ble-spam-watch.sh \
     scripts/capture-btmon.sh \

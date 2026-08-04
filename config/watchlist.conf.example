@@ -1,0 +1,33 @@
+# Watchlist for ble-fingerprint.py
+#
+#   ./scripts/ble-fingerprint.py --input logs/capture.log \
+#       --watchlist config/watchlist.conf
+#
+# One matcher per line. Text after '#' becomes the note shown on a hit.
+#
+# Matchers:
+#   AA:BB:CC:DD:EE:FF   an observed address
+#   name:<substring>    matches the advertised name, case-insensitive
+#   <serial>            a serial extracted from an advertised name
+#   <fingerprint>       the 12-character content fingerprint, or a full
+#                       identity key such as 'addr:...' or 'serial:...'
+#
+# Which matcher to use depends on how the device advertises. Run the tool once
+# without a watchlist and read the KEY and TIER columns first:
+#
+#   strong     public address, or a serial in the name. Safe to watch by
+#              address or serial; it identifies one unit.
+#   session    random static address. Safe to watch by address for as long as
+#              the device stays powered, but it changes after a reboot.
+#   model      the address rotates, so only the fingerprint persists, and it
+#              identifies a product rather than a unit. Several people with the
+#              same headphones share one fingerprint.
+#   ambiguous  not enough distinguishing content to attribute to anything.
+#              Watching these produces hits that mean nothing.
+#
+# Watching a 'model' or 'ambiguous' entry is a lead, not an identification.
+
+# --- examples, delete these -------------------------------------------------
+# name:flipper            # Flipper Zero default advertised name
+# name:marauder           # ESP32 Marauder
+# DA:AB:97:C5:53:68       # device seen loitering, logged 2026-08-04

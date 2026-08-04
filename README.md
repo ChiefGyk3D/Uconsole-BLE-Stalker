@@ -173,6 +173,65 @@ sudo ./scripts/foxhunt-rssi.sh AA:BB:CC:DD:EE:FF
 Walk slowly and compare median RSSI trend over time.
 Rising (less negative) median indicates moving closer.
 
+Instantaneous RSSI is far too noisy to navigate by, so the median over a
+sliding window is what you steer on. The tool prints a `waiting:` line when the
+target has not been heard for a few seconds; many devices advertise only every
+few seconds, so silence usually means "not yet" rather than "broken".
+
+### 3a) Identify and track devices across captures
+
+```bash
+./scripts/ble-fingerprint.py --input logs/btmon-hci0-YYYYMMDD-HHMMSS.log
+```
+
+This records every advertiser in `logs/sightings.json`, so devices seen in an
+earlier capture are flagged with `*` when they turn up again.
+
+Tracking a device is not simply tracking its MAC. Most modern devices advertise
+with addresses that rotate every few minutes. In a 25 second sample taken on a
+conference floor, 63% of addresses were rotating, 33% were random static, and
+only 4% were public. Each device therefore gets an identity tier, and the tier
+is the part worth reading:
+
+| Tier | Meaning | Reliable for |
+|---|---|---|
+| `strong` | public address, or a serial number in the advertised name | identifying an individual unit |
+| `session` | random static address | one unit until it reboots |
+| `model` | rotating address; only the advertisement's structure persists | identifying a product, not a unit |
+| `ambiguous` | too little distinguishing content to attribute at all | nothing |
+
+`model` and `ambiguous` hits are leads, not identifications. Several people
+carrying the same earbuds produce one `model` fingerprint. In one real capture
+three different devices all advertised the name `AC695X_1`, a chipset used by
+many cheap earbud vendors.
+
+Keep a list of devices worth flagging:
+
+```bash
+cp config/watchlist.conf.example config/watchlist.conf
+./scripts/ble-fingerprint.py --input logs/capture.log --watchlist config/watchlist.conf
+```
+
+### 3b) Hunt a device whose address rotates
+
+Resolve a target by name, vendor, serial or fingerprint, then track every
+address it is currently using:
+
+```bash
+sudo ./scripts/foxhunt-rssi.sh --hunt "flipper" --from-capture logs/capture.log
+```
+
+Read the tier warning it prints. If the target resolved at `model` or
+`ambiguous` tier the address set may span several different devices, and the
+RSSI trend will jump between them as you walk.
+
+To supply targets yourself:
+
+```bash
+./scripts/ble-fingerprint.py --input logs/capture.log --hunt "whoop" > targets.txt
+sudo ./scripts/foxhunt-rssi.sh --targets targets.txt
+```
+
 ### 4) Dual-pane session
 
 ```bash

@@ -141,6 +141,26 @@ nano config/aio-features.conf
 
 The script writes and uses `logs/aio-state-latest.state` to restore previous interface and service states.
 
+## Validation suite
+
+Run the full local validation suite before a field session:
+
+```bash
+./tests/test-toolkit.sh
+```
+
+This checks shell syntax for the toolkit scripts, confirms the core config files exist, and writes a timestamped report under `logs/`.
+
+## Optional GPS-assisted plotting
+
+For future mapping work, you can merge BLE observations with GPS coordinates into a CSV that is easy to plot:
+
+```bash
+python3 scripts/ble-gps-merge.py --gps /path/to/gps.csv --ble /path/to/ble.csv --output logs/ble-gps-plot.csv
+```
+
+See `docs/gps-plotting-notes.md` for the intended workflow and output schema.
+
 ## Practical Conference Workflow
 
 1. Run spam watch near suspected area.

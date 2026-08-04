@@ -125,6 +125,26 @@ If you are using the HackerGadgets AC1200 USB-C Wi-Fi card, run:
 
 This collects USB inventory, controller visibility, rfkill state, module load info, and relevant Bluetooth/MediaTek dmesg lines into a log file under `logs/`.
 
+## Validation and regression checks
+
+Before heading to the field, run:
+
+```bash
+./tests/test-toolkit.sh
+```
+
+This exercise checks the toolkit scripts, the expected config files, and writes a validation report into `logs/`.
+
+## Optional GPS merge for later plotting
+
+If you want to start correlating BLE observations with GPS positions, use:
+
+```bash
+python3 scripts/ble-gps-merge.py --gps /path/to/gps.csv --ble /path/to/ble.csv --output logs/ble-gps-plot.csv
+```
+
+That produces a simple CSV suitable for later plotting or map overlays.
+
 ## Shareable debug bundle
 
 You can send this output when asking for help:

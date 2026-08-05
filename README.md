@@ -69,6 +69,37 @@ This toolkit is optimized for uConsole with AIO v2. Optional USB-C expansion ada
 
 ## Install (Raspberry Pi OS / Debian)
 
+### Prerequisite: install the AIO v2 support first
+
+On a uConsole, install and reboot into the ClockworkPi AIO v2 support before
+installing this toolkit. That installer owns the boot configuration and the
+kernel modules that bring the radios up; this toolkit deliberately owns none
+of it, and only makes runtime-reversible changes such as `rfkill block` and
+stopping a service for the duration of a field session. Keeping boot-critical
+configuration out of a scanning tool means a bad field profile cannot leave
+the device unbootable.
+
+The practical consequence is ordering. If this toolkit is installed and
+configured before the adapters enumerate, `detect-hci.sh` reports whatever
+exists at that moment, so `hci1` looks absent and `config/interfaces.conf`
+gets written for a single-adapter machine that is actually dual.
+
+Confirm the radios are up before continuing:
+
+```bash
+hciconfig -a
+```
+
+Expect `hci0` for the CM4 internal radio, and `hci1` as well if an external
+adapter such as the AC1200 is fitted. If a device is missing here it is a
+platform problem, not a toolkit problem: recheck the AIO v2 install and
+reboot. Note that some AC1200 variants are Wi-Fi only and expose no Bluetooth
+at all, in which case single-adapter mode is correct and expected.
+
+Already running the AIO v2 support? Nothing to redo; carry straight on.
+
+### Install the toolkit
+
 Primary path (uConsole + AIO v2):
 
 ```bash
@@ -88,6 +119,9 @@ requirements, then add `bluez-tools`, `wireless-tools`, `iw` and `tshark`
 individually, skipping any that the distribution does not carry. They verify
 the binaries afterwards and fail loudly if something is still missing, since
 package names and binary names do not always match.
+
+None of these packages are provided by the AIO v2 installer, so there is
+nothing to conflict with: this step only adds to what is already there.
 
 `btmon` is a binary provided by the `bluez` package, not a standalone package.
 If `btmon` is reported missing, install `bluez`.

@@ -45,6 +45,25 @@ if (( ${#missing[@]} > 0 )); then
   exit 1
 fi
 
+# Warn, do not fail. The packages are installed correctly at this point, and an
+# adapter can legitimately be absent right now: the AIO v2 support may not have
+# been installed or rebooted into yet, or the external adapter may be unplugged.
+# Detecting it here is what stops config/interfaces.conf being written for a
+# single-adapter machine that is actually dual.
+adapters="$(hciconfig 2>/dev/null | grep -cE '^hci[0-9]+:' || true)"
+if [[ "${adapters}" -eq 0 ]]; then
+  echo >&2
+  echo "WARNING: no Bluetooth adapters are visible (hciconfig lists none)." >&2
+  echo "On a uConsole this usually means the ClockworkPi AIO v2 support is not" >&2
+  echo "installed yet, or the device has not been rebooted since installing it." >&2
+  echo "That support is a prerequisite: it owns the boot configuration and" >&2
+  echo "kernel modules that bring the radios up, which this toolkit does not." >&2
+  echo "Install it, reboot, confirm 'hciconfig -a' lists hci0, then continue." >&2
+else
+  echo
+  echo "Bluetooth adapters visible: ${adapters}"
+fi
+
 echo
 echo "Dependencies installed and verified."
 echo "Next:"

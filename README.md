@@ -156,6 +156,35 @@ Example:
 python3 scripts/ble-signature-scan.py --input logs/btmon-hci0-YYYYMMDD-HHMMSS.log --profile conservative
 ```
 
+#### Baseline before you trust a threshold
+
+The shipped thresholds were measured on a hacker-conference floor, where
+ambient traffic is far denser than normal and some of it is genuinely
+hostile. That makes them defensible there and unproven anywhere else. Take
+your own baseline somewhere quiet before relying on a verdict:
+
+```bash
+sudo ./scripts/capture-btmon.sh
+python3 scripts/ble-signature-scan.py --input logs/<capture>.log
+```
+
+Nothing should match on ordinary ambient traffic. If something does, raise the
+thresholds it tripped in `config/signatures.conf`. The scanner prints
+`config_source=` so you can confirm which thresholds were actually used, and
+warns on stderr about keys it does not recognise — an unrecognised key keeps
+its default rather than taking effect.
+
+Two things learned from real captures that are worth knowing before you tune:
+
+- **A high proportion of random addresses is not evidence of spam.** In plain
+  ambient traffic 94% of addresses were random, because privacy-preserving
+  address rotation is now the norm. Any rule keyed on address randomness fires
+  on everybody. `unique_ratio` and `singleton_ratio` are what actually
+  separate a flood from a crowd.
+- **Short captures cannot be judged.** A two second sample can look like
+  anything, so the scanner refuses to reach a verdict below
+  `min_duration_sec`. Give it at least 10-20 seconds.
+
 ### 2) Raw capture for later analysis
 
 ```bash

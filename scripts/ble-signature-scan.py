@@ -296,9 +296,14 @@ def load_config(profile: str, config_path: str) -> SignatureConfig:
             rules = dict(DEFAULT_RULES[selected_profile])
 
     if parser.has_section(selected_profile):
+        # An unknown key is almost always a stale or misspelled config. Silently
+        # ignoring it hides the fact that a tuned threshold never took effect,
+        # while config_source still reports the file as loaded. Say so instead.
+        unknown: List[str] = []
         for key, value in parser.items(selected_profile):
             base = rules.get(key)
             if base is None:
+                unknown.append(key)
                 continue
             if isinstance(base, bool):
                 rules[key] = value.strip().lower() in ("1", "true", "yes", "on")
@@ -306,12 +311,32 @@ def load_config(profile: str, config_path: str) -> SignatureConfig:
                 try:
                     rules[key] = float(value)
                 except ValueError:
-                    pass
+                    print(
+                        f"WARNING: {config_path}: {key} is not a number: {value!r}"
+                        " (keeping default)",
+                        file=sys.stderr,
+                    )
             elif isinstance(base, int):
                 try:
                     rules[key] = int(value)
                 except ValueError:
-                    pass
+                    print(
+                        f"WARNING: {config_path}: {key} is not an integer: {value!r}"
+                        " (keeping default)",
+                        file=sys.stderr,
+                    )
+        if unknown:
+            print(
+                f"WARNING: {config_path} [{selected_profile}]: "
+                f"{len(unknown)} unrecognised key(s) ignored: "
+                f"{', '.join(sorted(unknown))}",
+                file=sys.stderr,
+            )
+            print(
+                "WARNING: these thresholds are NOT in effect. "
+                "Compare against config/signatures.conf.example.",
+                file=sys.stderr,
+            )
 
     source = f"{config_path}:{selected_profile}"
     return SignatureConfig(selected_profile, rules, source)

@@ -1,28 +1,55 @@
 # Copy to config/signatures.conf and tune for your environment.
+#
+# These keys are generated from the scanner's built-in defaults. Any key the
+# scanner does not recognise is ignored and reported as a warning on stderr,
+# so if you rename or misspell one the threshold silently stays at its default.
+#
+# IMPORTANT: the shipped defaults were measured against a hacker-conference
+# floor, which is unusually noisy. Take a baseline in YOUR environment before
+# trusting them:
+#
+#   sudo ./scripts/capture-btmon.sh
+#   python3 scripts/ble-signature-scan.py --input logs/<capture>.log
+#
+# Nothing should match on ordinary ambient traffic. If something does, raise
+# the thresholds it tripped. Rates are per second, ratios are 0.0-1.0.
 
 [general]
 # conservative | balanced | aggressive
 profile = balanced
 
+
 [balanced]
-flipper_min_apple_mfg_events = 20
+# short captures produce unstable rates; refuse to judge below this
+min_duration_sec = 5
+# Apple-manufacturer adverts per second
+flipper_min_apple_rate = 2.0
 flipper_min_unique_addrs = 10
-flipper_min_random_ratio = 0.60
+# share of events from distinct addresses
+flipper_min_unique_ratio = 0.5
 flipper_min_lure_hits = 3
-marauder_min_events = 80
+# total adverts per second
+marauder_min_event_rate = 12.0
+marauder_min_unique_ratio = 0.6
+# share of addresses heard exactly once
+marauder_min_singleton_ratio = 0.65
 marauder_min_unique_addrs = 40
 marauder_min_unique_names = 15
 marauder_min_vendor_diversity = 5
-fastpair_min_events = 10
+# Fast Pair service-data adverts per second
+fastpair_min_rate = 0.8
 fastpair_min_unique_addrs = 8
-generic_min_events = 60
-generic_min_unique_ratio = 0.50
-random_churn_min_events = 90
-random_churn_min_unique_ratio = 0.70
-random_churn_min_random_ratio = 0.80
+# total adverts per second
+generic_min_event_rate = 15.0
+generic_min_unique_ratio = 0.6
+random_churn_min_event_rate = 15.0
+random_churn_min_unique_ratio = 0.75
+# share of addresses heard exactly once
+random_churn_min_singleton_ratio = 0.75
 name_rotation_min_unique_names = 12
 name_rotation_min_lure_hits = 8
-name_rotation_min_events = 75
+# total adverts per second
+name_rotation_min_event_rate = 10.0
 enable_flipper = true
 enable_marauder = true
 enable_fastpair = true
@@ -31,24 +58,27 @@ enable_random_churn = true
 enable_name_rotation = true
 
 [conservative]
-flipper_min_apple_mfg_events = 30
+min_duration_sec = 10
+flipper_min_apple_rate = 3.0
 flipper_min_unique_addrs = 16
-flipper_min_random_ratio = 0.70
+flipper_min_unique_ratio = 0.6
 flipper_min_lure_hits = 6
-marauder_min_events = 120
+marauder_min_event_rate = 20.0
+marauder_min_unique_ratio = 0.7
+marauder_min_singleton_ratio = 0.75
 marauder_min_unique_addrs = 60
 marauder_min_unique_names = 20
 marauder_min_vendor_diversity = 6
-fastpair_min_events = 16
+fastpair_min_rate = 1.5
 fastpair_min_unique_addrs = 12
-generic_min_events = 90
-generic_min_unique_ratio = 0.70
-random_churn_min_events = 120
-random_churn_min_unique_ratio = 0.80
-random_churn_min_random_ratio = 0.85
+generic_min_event_rate = 25.0
+generic_min_unique_ratio = 0.75
+random_churn_min_event_rate = 25.0
+random_churn_min_unique_ratio = 0.85
+random_churn_min_singleton_ratio = 0.85
 name_rotation_min_unique_names = 18
 name_rotation_min_lure_hits = 12
-name_rotation_min_events = 100
+name_rotation_min_event_rate = 15.0
 enable_flipper = true
 enable_marauder = true
 enable_fastpair = true
@@ -57,24 +87,27 @@ enable_random_churn = true
 enable_name_rotation = true
 
 [aggressive]
-flipper_min_apple_mfg_events = 12
+min_duration_sec = 3
+flipper_min_apple_rate = 0.8
 flipper_min_unique_addrs = 6
-flipper_min_random_ratio = 0.50
+flipper_min_unique_ratio = 0.35
 flipper_min_lure_hits = 2
-marauder_min_events = 45
+marauder_min_event_rate = 5.0
+marauder_min_unique_ratio = 0.4
+marauder_min_singleton_ratio = 0.45
 marauder_min_unique_addrs = 20
 marauder_min_unique_names = 8
 marauder_min_vendor_diversity = 3
-fastpair_min_events = 6
+fastpair_min_rate = 0.3
 fastpair_min_unique_addrs = 4
-generic_min_events = 30
-generic_min_unique_ratio = 0.40
-random_churn_min_events = 45
-random_churn_min_unique_ratio = 0.55
-random_churn_min_random_ratio = 0.65
+generic_min_event_rate = 6.0
+generic_min_unique_ratio = 0.4
+random_churn_min_event_rate = 6.0
+random_churn_min_unique_ratio = 0.5
+random_churn_min_singleton_ratio = 0.5
 name_rotation_min_unique_names = 6
 name_rotation_min_lure_hits = 4
-name_rotation_min_events = 40
+name_rotation_min_event_rate = 4.0
 enable_flipper = true
 enable_marauder = true
 enable_fastpair = true

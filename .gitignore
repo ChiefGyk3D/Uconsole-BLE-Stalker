@@ -28,3 +28,4 @@ config/signatures.conf
 config/aio-features.conf
 # A watchlist holds addresses and names of other people's devices. Never commit it.
 config/watchlist.conf
+config/*.bak-*

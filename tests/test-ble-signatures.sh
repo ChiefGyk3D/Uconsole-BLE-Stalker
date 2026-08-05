@@ -31,19 +31,25 @@ print("parser sanity ok: %d records" % len(records))
 PY
 
 # --- True positives ----------------------------------------------------------
-python3 "${SCAN}" --input "${TMP_DIR}/spam.log" --profile balanced > "${TMP_DIR}/spam.txt"
+# Every scan below passes an explicit empty config. Without it the scanner
+# falls back to config/signatures.conf, which is untracked and operator-tuned,
+# so results would depend on whose machine the suite runs on.
+NO_CONF="${TMP_DIR}/empty.conf"
+: > "${NO_CONF}"
+
+python3 "${SCAN}" --input "${TMP_DIR}/spam.log" --profile balanced --config "${NO_CONF}" > "${TMP_DIR}/spam.txt"
 grep -q 'MATCH Flipper-like Apple popup spam pattern' "${TMP_DIR}/spam.txt"
 grep -q 'MATCH Random-address churn flood' "${TMP_DIR}/spam.txt"
 grep -q 'MATCH Generic BLE spam burst' "${TMP_DIR}/spam.txt"
 
-python3 "${SCAN}" --input "${TMP_DIR}/fastpair.log" --profile balanced > "${TMP_DIR}/fp.txt"
+python3 "${SCAN}" --input "${TMP_DIR}/fastpair.log" --profile balanced --config "${NO_CONF}" > "${TMP_DIR}/fp.txt"
 grep -q 'MATCH Fast Pair lure flood pattern' "${TMP_DIR}/fp.txt"
 
 # --- False positives ---------------------------------------------------------
 # Ambient traffic runs at a comparable event rate to the spam fixture, so this
 # only passes if detection keys on address reuse shape rather than volume.
 for profile in conservative balanced aggressive; do
-  python3 "${SCAN}" --input "${TMP_DIR}/ambient.log" --profile "${profile}" \
+  python3 "${SCAN}" --input "${TMP_DIR}/ambient.log" --profile "${profile}" --config "${NO_CONF}" \
     > "${TMP_DIR}/ambient-${profile}.txt"
   if grep -q '^MATCH ' "${TMP_DIR}/ambient-${profile}.txt"; then
     echo "FAIL: ambient traffic matched a signature under '${profile}' profile" >&2
@@ -55,7 +61,7 @@ done
 # --- Short-capture guard -----------------------------------------------------
 # A two second sample is too small to judge; rates are unstable at that size.
 python3 "${FIXTURE}" --mode spam --duration 2 --output "${TMP_DIR}/short.log"
-python3 "${SCAN}" --input "${TMP_DIR}/short.log" --profile conservative > "${TMP_DIR}/short.txt"
+python3 "${SCAN}" --input "${TMP_DIR}/short.log" --profile conservative --config "${NO_CONF}" > "${TMP_DIR}/short.txt"
 if grep -q '^MATCH ' "${TMP_DIR}/short.txt"; then
   echo "FAIL: conservative profile judged a 2s capture" >&2
   exit 1

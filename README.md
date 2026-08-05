@@ -72,19 +72,31 @@ This toolkit is optimized for uConsole with AIO v2. Optional USB-C expansion ada
 Primary path (uConsole + AIO v2):
 
 ```bash
-cd uconsole-ble-foxhunt-toolkit
+git clone https://github.com/ChiefGyk3D/Uconsole-BLE-Stalker.git
+cd Uconsole-BLE-Stalker
 sudo ./scripts/setup-pi.sh
 ```
 
 Secondary path (other apt-based Linux devices):
 
 ```bash
-cd uconsole-ble-foxhunt-toolkit
 sudo ./scripts/setup-linux.sh
 ```
 
-If `btmon` is reported missing, install `bluez`.
+Both installers install `bluez`, `python3`, `rfkill` and `tmux` as hard
+requirements, then add `bluez-tools`, `wireless-tools`, `iw` and `tshark`
+individually, skipping any that the distribution does not carry. They verify
+the binaries afterwards and fail loudly if something is still missing, since
+package names and binary names do not always match.
+
 `btmon` is a binary provided by the `bluez` package, not a standalone package.
+If `btmon` is reported missing, install `bluez`.
+
+Confirm the install before relying on it in the field:
+
+```bash
+./tests/test-toolkit.sh
+```
 
 ## Configure Interfaces
 

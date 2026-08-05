@@ -51,16 +51,45 @@ check_optional_file() {
 
 check_shell_syntax() {
   local script="$1"
+  local target="${ROOT_DIR}/${script}"
+  local output=""
+
+  # Report these separately. Previously every one of them surfaced as
+  # "Syntax error", with the real message discarded, so a stale checkout, a
+  # permissions problem and genuinely broken code were indistinguishable.
+  if [[ ! -e "${target}" ]]; then
+    record_fail "Missing file: ${script} (checkout may be incomplete or stale)"
+    return
+  fi
+  if [[ ! -r "${target}" ]]; then
+    record_fail "Not readable: ${script} ($(ls -ld "${target}" | awk '{print $1, $3, $4}'))"
+    return
+  fi
+
   if [[ "${script}" == *.py ]]; then
-    if python3 -m py_compile "${ROOT_DIR}/${script}" >/dev/null 2>&1; then
+    # Compile in memory rather than with py_compile, which writes __pycache__.
+    # Much of this toolkit must run under sudo, and one sudo run leaves
+    # __pycache__ owned by root; every later check as a normal user then fails
+    # with EACCES on a perfectly valid file.
+    if output="$(python3 -c 'import sys
+path = sys.argv[1]
+try:
+    with open(path, "rb") as handle:
+        compile(handle.read(), path, "exec")
+except SyntaxError as exc:
+    sys.exit("line %s: %s" % (exc.lineno, exc.msg))
+except OSError as exc:
+    sys.exit("cannot read: %s" % exc)' "${target}" 2>&1)"; then
       record_pass "Syntax OK: ${script}"
     else
       record_fail "Syntax error: ${script}"
+      log "       ${output}"
     fi
-  elif bash -n "${ROOT_DIR}/${script}" >/dev/null 2>&1; then
+  elif output="$(bash -n "${target}" 2>&1)"; then
     record_pass "Syntax OK: ${script}"
   else
     record_fail "Syntax error: ${script}"
+    log "       ${output}"
   fi
 }
 

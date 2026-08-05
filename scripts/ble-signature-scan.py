@@ -507,6 +507,20 @@ def print_summary(stats: Stats, matches: List[Match], quiet: bool, cfg: Signatur
         print(f"MATCH {match.name} confidence={match.confidence}%")
         print(f"  evidence: {match.evidence}")
 
+    # The shipped thresholds were measured on a hacker-conference floor, which
+    # is denser than normal and already contains real spam, so no clean ambient
+    # baseline was available when they were set. Until the operator baselines
+    # their own environment a match is a lead worth investigating, not proof.
+    # On stderr so it cannot corrupt the summary on stdout.
+    if cfg.source.startswith("defaults:"):
+        print(
+            "NOTE: using built-in thresholds, which were measured in a very "
+            "noisy RF environment and are not baselined for yours. Capture "
+            "known-quiet ambient traffic and confirm it produces no match "
+            "before treating a match as conclusive.",
+            file=sys.stderr,
+        )
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(

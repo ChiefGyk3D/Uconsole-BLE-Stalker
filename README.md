@@ -469,6 +469,47 @@ MediaTek AC1200-specific diagnostic report:
 - Signature matches are heuristic and defensive, not attribution-grade proof of a specific tool.
 - Coverage is strong for common scripted BLE spam patterns but not exhaustive for every custom payload seen during Hacker Summer Camp.
 
+## Known Limitations and Roadmap
+
+Open work, kept here rather than in a tracker so the caveats travel with the
+tool.
+
+### Detector thresholds are not yet baselined against quiet RF (planned)
+
+Every threshold in `scripts/ble-signature-scan.py` was measured during Hacker
+Summer Camp 2026, on the BSidesLV floor at the Tuscany. That environment is
+both far denser than normal and genuinely full of BLE spam, so a clean ambient
+sample was never available while the numbers were being set. The thresholds
+are workable and they no longer fire on ordinary conference traffic, but
+"does not fire in a hostile environment" is a weaker claim than "fires only on
+hostile traffic". Both directions still need confirming somewhere quiet.
+
+The scanner prints a note to stderr whenever it falls back to built-in
+thresholds, for exactly this reason.
+
+Planned follow-up, after the conference week:
+
+1. Capture 20-30s of ordinary ambient traffic somewhere quiet.
+2. Confirm the scan produces no match. Raise any threshold that trips.
+3. Re-run the retained conference captures to confirm the adjustment did not
+   simply blind the detector.
+4. Record both baselines so future tuning has a fixed reference.
+
+Until then, treat a match as a lead worth investigating rather than a verdict,
+and prefer your own `config/signatures.conf` over the shipped defaults once you
+have measured your environment.
+
+### Other open items
+
+- Rotating addresses limit tracking by design. Roughly two thirds of observed
+  addresses rotate, so `model` and `ambiguous` tier hits identify a product
+  rather than a unit. Improving this means correlating advertising interval
+  and timing, which is not implemented.
+- Signature coverage targets common scripted spam. Custom payloads are not
+  exhaustively covered.
+- Only the shell code is linted in CI. The Python is exercised by the test
+  suite but not statically checked.
+
 ## Contributing
 
 Testing on additional hardware is especially welcome. When reporting an issue,

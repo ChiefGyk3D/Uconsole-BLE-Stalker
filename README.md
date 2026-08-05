@@ -545,6 +545,19 @@ Until then, treat a match as a lead worth investigating rather than a verdict,
 and prefer your own `config/signatures.conf` over the shipped defaults once you
 have measured your environment.
 
+### Everything is driven from the command line (planned TUI)
+
+Setup and operation currently mean remembering script names, argument order,
+and which interface to pass. That is a poor fit for the uConsole, which is
+often used one-handed, standing up, on a small screen. A menu-driven front end
+is planned to cover adapter selection, setup, the field run, spam watch, and
+foxhunt, so the common paths do not have to be typed from memory.
+
+The likely approach is `whiptail` or `dialog`, which are already present on
+Raspberry Pi OS and add no runtime dependency, rather than a Python `curses`
+application. The scripts stay the interface underneath either way; the menu
+would only build the command line, so nothing becomes menu-only.
+
 ### Other open items
 
 - Rotating addresses limit tracking by design. Roughly two thirds of observed

@@ -386,3 +386,77 @@ warn_if_capture_empty() {
     echo "warn: check that LE scan is enabled and the adapter is up (see TROUBLESHOOTING.md)." >&2
   fi
 }
+
+CAPTURE_PROGRESS_PID=""
+
+# Report capture progress while btmon runs into a file.
+#
+# A quiet capture is indistinguishable from a hung one: the default field run
+# is five minutes, during which the screen would not change at all. Worse, a
+# capture that is silently recording nothing, which is the failure this toolkit
+# has hit before, looked exactly like one that was working.
+#
+# Reads the growing capture file rather than tapping the stream, so it costs
+# the capture nothing and cannot interfere with it. The trade-off is that btmon
+# flushes to that file in blocks, so the running counts lag behind reality and
+# jump in steps. They are a liveness indicator, not a measurement; the summary
+# at the end is the authoritative count.
+#
+# Usage: start_capture_progress <logfile> <duration> [interval]
+start_capture_progress() {
+  local logfile="$1"
+  local duration="$2"
+  local interval="${3:-10}"
+
+  (
+    local elapsed=0
+    local events=0
+    local addrs=0
+    local reported_silence=0
+
+    while (( elapsed < duration )); do
+      sleep "${interval}"
+      elapsed=$(( elapsed + interval ))
+      (( elapsed > duration )) && elapsed="${duration}"
+
+      events=0
+      addrs=0
+      if [[ -s "${logfile}" ]]; then
+        # Only '>' blocks are real HCI events. '@' MGMT lines echo the same
+        # advert and would roughly double the count.
+        read -r events addrs <<<"$(awk '
+          /^> / { ev++ }
+          /Address:/ {
+            a = $2
+            gsub(",", "", a)
+            if (a ~ /([0-9A-F]{2}:){5}[0-9A-F]{2}/) { seen[a] = 1 }
+          }
+          END {
+            n = 0
+            for (k in seen) { n++ }
+            printf "%d %d\n", ev + 0, n
+          }
+        ' "${logfile}" 2>/dev/null)"
+      fi
+
+      printf 'capturing %ss/%ss  events=%s  unique_addrs=%s\n' \
+        "${elapsed}" "${duration}" "${events:-0}" "${addrs:-0}"
+
+      # Say so early rather than after a five minute wait.
+      if (( events == 0 && reported_silence == 0 && elapsed >= interval * 2 )); then
+        reported_silence=1
+        echo "  note: nothing captured yet. If this stays at zero the adapter" >&2
+        echo "  is probably not scanning; see TROUBLESHOOTING.md." >&2
+      fi
+    done
+  ) &
+
+  CAPTURE_PROGRESS_PID=$!
+}
+
+stop_capture_progress() {
+  [[ -n "${CAPTURE_PROGRESS_PID}" ]] || return 0
+  kill "${CAPTURE_PROGRESS_PID}" 2>/dev/null || true
+  wait "${CAPTURE_PROGRESS_PID}" 2>/dev/null || true
+  CAPTURE_PROGRESS_PID=""
+}

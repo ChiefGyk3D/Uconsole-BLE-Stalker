@@ -36,13 +36,19 @@ echo "Capture log: ${CAPTURE_LOG}"
 echo "Capture trace: ${CAPTURE_TRACE}"
 echo "Summary file: ${SUMMARY_FILE}"
 
-trap 'stop_le_scan "${IFACE}"' EXIT
+trap 'stop_capture_progress; stop_le_scan "${IFACE}"' EXIT
 
 start_le_scan "${IFACE}"
+start_capture_progress "${CAPTURE_LOG}" "${DURATION}" 10
 run_btmon_capture "${IFACE}" "${DURATION}" "${CAPTURE_LOG}" quiet "${CAPTURE_TRACE}"
+stop_capture_progress
 stop_le_scan "${IFACE}"
 
 warn_if_capture_empty "${CAPTURE_LOG}"
+
+echo
+echo "Capture finished. Analysing..."
+echo
 
 {
   echo "# BLE Field Summary"
@@ -128,7 +134,10 @@ warn_if_capture_empty "${CAPTURE_LOG}"
   else
     echo "python3 not available; signature scan skipped"
   fi
-} > "${SUMMARY_FILE}"
+# Shown as well as saved. Writing the whole summary to a file left the operator
+# with a blank screen and a path to go and read, which is the wrong result for
+# something used while standing up at a conference.
+} | tee "${SUMMARY_FILE}"
 
 echo
 echo "Field run complete."

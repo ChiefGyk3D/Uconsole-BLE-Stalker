@@ -26,13 +26,19 @@ echo "Monitoring ${IFACE} for ${DURATION}s. Alert threshold=${THRESHOLD} ads/add
 
 tmpfile="$(mktemp)"
 tmplog="$(mktemp)"
-trap 'stop_le_scan "${IFACE}"; rm -f "${tmpfile}" "${tmplog}"' EXIT
+trap 'stop_capture_progress; stop_le_scan "${IFACE}"; rm -f "${tmpfile}" "${tmplog}"' EXIT
 
 start_le_scan "${IFACE}"
+start_capture_progress "${tmplog}" "${DURATION}" 10
 run_btmon_capture "${IFACE}" "${DURATION}" "${tmplog}" quiet
+stop_capture_progress
 stop_le_scan "${IFACE}"
 
 warn_if_capture_empty "${tmplog}"
+
+echo
+echo "Sweep finished. Analysing..."
+echo
 
 awk '
   /Address:/ {

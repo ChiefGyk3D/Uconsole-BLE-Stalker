@@ -24,6 +24,7 @@ grep -q "Validation complete" "${REPORT}"
 "${ROOT_DIR}/tests/test-ble-signature-tuning.sh"
 "${ROOT_DIR}/tests/test-ble-fingerprint.sh"
 "${ROOT_DIR}/tests/test-capture-resilience.sh"
+"${ROOT_DIR}/tests/test-capture-progress.sh"
 "${ROOT_DIR}/tests/test-le-scan-enable.sh"
 "${ROOT_DIR}/tests/test-config-parsing.sh"
 
